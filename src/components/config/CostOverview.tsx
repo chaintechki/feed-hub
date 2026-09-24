@@ -71,7 +71,7 @@ export function CostOverview() {
       const payload = Object.fromEntries(FIELDS.map((f) => [f, Number(v[f]) || 0]));
       const { error } = await supabase
         .from("cost_settings")
-        .update({ ...payload, currency: v.currency || "EUR", updated_at: new Date().toISOString(), updated_by: u.user?.id })
+        .update({ ...payload, currency: v.currency || "EUR", updated_at: new Date().toISOString(), updated_by: u.user?.id ?? null })
         .eq("id", 1);
       if (error) throw error;
     },
