@@ -147,7 +147,8 @@ Deno.serve(async (req) => {
       } else if (kind === "odds") {
         data = (await getMatches(sb, client, { id: decodeURIComponent(oddsMatch![1]!), withOdds: true, limit: 1, rounding, groups, lang: lang as "en" | "de" })).rows;
         if (!data.length) return null;
-      } else if (kind === "outrights") data = await getOutrights(sb, client, rounding);
+      } else if (kind === "markets") data = await getMarkets(sb, client, lang as "en" | "de");
+      else if (kind === "outrights") data = await getOutrights(sb, client, rounding);
       else data = await getResults(sb, client);
       return xml
         ? toXml(kind, data as any[], meta)
