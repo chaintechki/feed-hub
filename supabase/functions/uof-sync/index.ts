@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     result.schedule = await upsertEvents(sb, events);
     result.next = next;
 
-    const full = JSON.parse(body || "{}")?.markets === true;
+    const full = opts.markets === true;
     const { count } = await sb.from("uof_markets").select("id", { count: "exact", head: true });
     if (full || !count) {
       const md = await uofGet("/descriptions/en/markets.xml");
