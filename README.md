@@ -40,7 +40,7 @@ sudo REPO_URL=https://github.com/<you>/<repo>.git bash deploy.sh
 ```
 
 The script checks and installs everything that is missing (git, nginx,
-certbot, Node.js 20 + npm, build tools, ufw, fail2ban, unattended-upgrades,
+certbot, Node.js 22 + npm, build tools, ufw, fail2ban, unattended-upgrades,
 swap, time sync), clones the repository to `/opt/feed-panel` and continues there.
 HTTPS is only requested once DNS points to the server.
 
