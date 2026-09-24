@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { catalog, resolveTemplate, specString, uofIdOf } from "./markets.ts";
+import { catalog, knownOutcomeTemplate, resolveTemplate, specString, uofIdOf } from "./markets.ts";
 import { ERROR_CODES, ipAllowed, isExpired, priceOdds, type ErrorCode, type RoundingMode } from "./api-core.ts";
 export { ERROR_CODES, buildOpenApi, clientIp, type ErrorCode } from "./api-core.ts";
 
@@ -202,7 +202,7 @@ export async function getMatches(sb: SupabaseClient, c: Client, opts: MatchOpts)
               .filter((x) => typeof x.odds === "number" && x.odds > 1)
               .map((x) => {
                 const id = String(x.label ?? x.name);
-                const raw = outNames.get(id);
+                const raw = knownOutcomeTemplate(o.market, id, de) ?? outNames.get(id);
                 return { id, name: raw ? resolveTemplate(raw, spec, m.home_team, m.away_team) : id, odds: applyMarkup(x.odds, c.markup_pct, opts.rounding) };
               }),
           };

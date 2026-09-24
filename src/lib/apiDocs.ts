@@ -11,8 +11,8 @@ export const JSON_SAMPLE = `{
     "tournament_id": "sr:tournament:17", "home_team": "Arsenal", "away_team": "Liverpool",
     "scheduled": "2026-09-24T19:00:00Z", "status": "not_started", "match_minute": null,
     "updated_at": "2026-09-24T01:28:40Z",
-    "markets": [{ "market": "1x2", "specifier": null, "active": true, "updated_at": "2026-09-24T01:28:40Z",
-      "outcomes": [{ "id": "1", "odds": 2.35 }, { "id": "X", "odds": 3.4 }, { "id": "2", "odds": 2.95 }] }]
+    "markets": [{ "market": "1x2", "uof_id": 1, "name": "1x2", "group": "main", "specifier": null, "active": true, "updated_at": "2026-09-24T01:28:40Z",
+      "outcomes": [{ "id": "1", "name": "Arsenal", "odds": 2.35 }, { "id": "X", "name": "draw", "odds": 3.4 }, { "id": "2", "name": "Liverpool", "odds": 2.95 }] }]
   }]
 }`;
 
@@ -25,10 +25,10 @@ export const XML_SAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
       <competitor qualifier="away" name="Liverpool"/>
     </competitors>
     <odds>
-      <market id="1x2" status="1">
-        <outcome id="1" odds="2.35" active="1"/>
-        <outcome id="X" odds="3.4" active="1"/>
-        <outcome id="2" odds="2.95" active="1"/>
+      <market id="1x2" uof_id="1" name="1x2" group="main" status="1">
+        <outcome id="1" name="Arsenal" odds="2.35" active="1"/>
+        <outcome id="X" name="draw" odds="3.4" active="1"/>
+        <outcome id="2" name="Liverpool" odds="2.95" active="1"/>
       </market>
     </odds>
   </sport_event>

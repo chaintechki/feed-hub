@@ -62,3 +62,17 @@ export function specString(market: string, specifier: string | null) {
   if (market === "handicap") return `hcp=${specifier}`;
   return specifier;
 }
+
+/** Outcome name templates for the panel's own keys (known markets store translated labels). */
+const KNOWN_OUT: Record<string, [string, string]> = {
+  "1": ["{$competitor1}", "{$competitor1}"], X: ["draw", "Unentschieden"], "2": ["{$competitor2}", "{$competitor2}"],
+  Over: ["over {total}", "über {total}"], Under: ["under {total}", "unter {total}"],
+  Yes: ["yes", "ja"], No: ["no", "nein"],
+  "1X": ["{$competitor1} or draw", "{$competitor1} oder Unentschieden"], "12": ["{$competitor1} or {$competitor2}", "{$competitor1} oder {$competitor2}"], X2: ["draw or {$competitor2}", "Unentschieden oder {$competitor2}"],
+};
+export function knownOutcomeTemplate(market: string, label: string, de: boolean): string | undefined {
+  if (market.startsWith("m")) return undefined;
+  if (market === "handicap") return label === "1" ? "{$competitor1} ({+hcp})" : label === "2" ? "{$competitor2} ({-hcp})" : undefined;
+  const t = KNOWN_OUT[label];
+  return t ? t[de ? 1 : 0] : undefined;
+}
