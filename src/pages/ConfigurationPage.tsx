@@ -68,6 +68,9 @@ export default function ConfigurationPage() {
             <DataTable columns={profileColumns} rows={profiles.data ?? []} isLoading={profiles.isLoading} />
           </section>
         )}
+        {!isAdmin && (
+          <ApiClients hideWhenEmpty />
+        )}
 
         <section className="space-y-2">
           <h2 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Audit log</h2>

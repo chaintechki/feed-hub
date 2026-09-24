@@ -116,6 +116,8 @@
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
     "addDomain": "Add",
+    "owner": "Assigned user",
+    "noOwner": "None",
     "newKey": "New key created",
     "onceHint": "Copy this key now – it will not be shown again.",
     "example": "Integration example",
