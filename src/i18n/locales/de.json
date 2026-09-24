@@ -42,7 +42,12 @@
     "market1x2": "1X2",
     "total": "Total",
     "handicap": "Handicap",
-    "noMatches": "Keine Spiele für die aktuelle Auswahl."
+    "noMatches": "Keine Spiele für die aktuelle Auswahl.",
+    "booked": "Spiel gebucht",
+    "bookFailed": "Buchung fehlgeschlagen",
+    "bookHint": "Live-Quoten buchen",
+    "bookedHint": "Gebucht",
+    "notBookable": "Nicht buchbar"
   },
   "auth": {
     "title": "Feed Panel Anmeldung",
@@ -396,6 +401,7 @@
     "noData": "Noch keine Feed-Nachrichten – läuft der Feed-Dienst?",
     "syncNow": "Jetzt synchronisieren",
     "synced": "Synchronisiert: {{count}} Spiele",
-    "syncFailed": "Synchronisierung fehlgeschlagen"
+    "syncFailed": "Synchronisierung fehlgeschlagen",
+    "checking": "Prüfe…"
   }
 }

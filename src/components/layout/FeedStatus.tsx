@@ -29,7 +29,7 @@ export function FeedStatus() {
 
   const q = useQuery({
     queryKey: ["uof_producers"],
-    refetchInterval: 15_000,
+    refetchInterval: 10_000,
     queryFn: async () => {
       const { data, error } = await supabase.from("uof_producers").select("id,name,last_alive_at,last_message_at,down").order("id");
       if (error) throw error;
@@ -56,11 +56,11 @@ export function FeedStatus() {
       <PopoverTrigger asChild>
         <button className="flex items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-wide">
           <motion.span
-            className={cn("h-2 w-2 rounded-full", allUp ? "bg-success" : "bg-danger")}
+            className={cn("h-2 w-2 rounded-full", q.isLoading ? "bg-muted-foreground" : allUp ? "bg-success" : "bg-danger")}
             animate={{ opacity: [1, 0.35, 1] }}
             transition={{ duration: 2.4, repeat: Infinity }}
           />
-          {allUp ? t("nav.operational") : t("feed.degraded")}
+          {q.isLoading ? t("feed.checking") : allUp ? t("nav.operational") : t("feed.degraded")}
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-3 text-[12px]">

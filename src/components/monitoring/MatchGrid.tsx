@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 import { AlertScoreDialog, CommentsDialog, H2HDialog, regenerateAlerts } from "@/components/monitoring/MatchDialogs";
 import { useComparisons } from "@/lib/feed/bookmakers";
