@@ -106,5 +106,28 @@
     "newKey": "New key created",
     "onceHint": "Copy this key now – it will not be shown again.",
     "example": "Integration example"
+  },
+  "usage": {
+    "title": "Usage statistics",
+    "allowedToday": "Allowed calls today",
+    "allowed7d": "Last 7 days",
+    "deniedToday": "Denied calls today",
+    "perClient": "Calls per customer",
+    "today": "Today",
+    "d7": "7 days",
+    "d30": "30 days",
+    "denied": "Denied",
+    "lastActive": "Last activity",
+    "endpoints": "Breakdown",
+    "noActivity": "No calls yet.",
+    "reason": {
+      "invalid_key": "Invalid key",
+      "format_denied": "Format not enabled",
+      "domain_denied": "Domain not allowed",
+      "unknown_endpoint": "Unknown endpoint",
+      "rate_limited": "Rate limit exceeded",
+      "not_found": "Match not found",
+      "unknown:fp": "Unknown key"
+    }
   }
 }

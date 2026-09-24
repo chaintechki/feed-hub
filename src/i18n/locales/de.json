@@ -106,5 +106,28 @@
     "newKey": "Neuer Schlüssel erstellt",
     "onceHint": "Schlüssel jetzt kopieren – er wird nicht erneut angezeigt.",
     "example": "Einbindungsbeispiel"
+  },
+  "usage": {
+    "title": "Abruf-Statistik",
+    "allowedToday": "Erlaubte Abrufe heute",
+    "allowed7d": "Letzte 7 Tage",
+    "deniedToday": "Abgewiesene Abrufe heute",
+    "perClient": "Abrufe pro Kunde",
+    "today": "Heute",
+    "d7": "7 Tage",
+    "d30": "30 Tage",
+    "denied": "Abgewiesen",
+    "lastActive": "Letzte Aktivität",
+    "endpoints": "Verteilung",
+    "noActivity": "Noch keine Abrufe.",
+    "reason": {
+      "invalid_key": "Ungültiger Schlüssel",
+      "format_denied": "Format nicht freigegeben",
+      "domain_denied": "Domain nicht freigegeben",
+      "unknown_endpoint": "Unbekannter Endpunkt",
+      "rate_limited": "Limit überschritten",
+      "not_found": "Spiel nicht gefunden",
+      "unknown:fp": "Unbekannter Schlüssel"
+    }
   }
 }
