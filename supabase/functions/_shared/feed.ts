@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { catalog, knownOutcomeTemplate, marketKeyOf, resolveTemplate, specString, uofIdOf } from "./markets.ts";
+import { catalog, knownOutcomeTemplate, marketDisplayName, marketKeyOf, resolveTemplate, specString, uofIdOf } from "./markets.ts";
 import { ERROR_CODES, ipAllowed, isExpired, priceOdds, type ErrorCode, type RoundingMode } from "./api-core.ts";
 export { ERROR_CODES, buildOpenApi, clientIp, type ErrorCode } from "./api-core.ts";
 
@@ -193,7 +193,7 @@ export async function getMatches(sb: SupabaseClient, c: Client, opts: MatchOpts)
           return {
             market: o.market,
             uof_id: uid,
-            name: ce ? resolveTemplate((de && ce.name_de) || ce.name, spec, m.home_team, m.away_team) : o.market,
+            name: ce ? marketDisplayName((de && ce.name_de) || ce.name, spec, m.home_team, m.away_team) : o.market,
             group: o.market_group,
             specifier: o.specifier,
             updated_at: o.updated_at,

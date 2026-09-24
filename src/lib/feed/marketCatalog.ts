@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useCallback } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
-import { knownOutcomeTemplate, resolveTemplate, specString, uofIdOf } from "../../../supabase/functions/_shared/market-names.ts";
+import { knownOutcomeTemplate, marketDisplayName, resolveTemplate, specString, uofIdOf } from "../../../supabase/functions/_shared/market-names.ts";
 
 export { MARKET_GROUPS, type MarketGroup } from "../../../supabase/functions/_shared/market-names.ts";
 
@@ -34,7 +34,7 @@ export function useMarketCatalog() {
       const id = uofIdOf(market);
       const e = id ? q.data?.get(id) : undefined;
       if (!e) return null;
-      return resolveTemplate((de && e.name_de) || e.name, specString(market, specifier), home, away);
+      return marketDisplayName((de && e.name_de) || e.name, specString(market, specifier), home, away);
     },
     [q.data, de],
   );

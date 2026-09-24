@@ -59,3 +59,10 @@ export function knownOutcomeTemplate(market: string, label: string, de: boolean)
 
 /** Market key used in feed responses for a UOF id. */
 export const marketKeyOf = (id: number) => Object.entries(KNOWN).find(([, v]) => v === id)?.[0] ?? `m${id}`;
+
+/** Market display name; appends specifier values the template does not show (e.g. "Handicap (incl. overtime) -1.5"). */
+export function marketDisplayName(tpl: string, specifier: string | null, home: string, away: string) {
+  const name = resolveTemplate(tpl, specifier, home, away);
+  const extra = (specifier ?? "").split("|").filter(Boolean).map((s) => s.split("=")).filter(([k]) => k && !tpl.includes(k)).map(([, v]) => v);
+  return extra.length ? `${name} ${extra.join(" ")}` : name;
+}
