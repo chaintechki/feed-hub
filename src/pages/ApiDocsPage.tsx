@@ -1,43 +1,13 @@
-import { PageShell } from "@/components/layout/PageShell";
+import { useQuery } from "@tanstack/react-query";
+import { Download } from "lucide-react";
+import { useMemo, useState } from "react";
+
 import { FEED_BASE } from "@/components/config/ApiClients";
-
-const endpoints = [
-  ["GET", "/sports", "Sport tree: sports → categories → tournaments"],
-  ["GET", "/matches", "Matches with odds. Params: sport=sr:sport:1, odds=false (schedule only)"],
-  ["GET", "/matches/{id}/odds", "Single match with all markets, e.g. /matches/sr:match:41001/odds"],
-  ["GET", "/outrights", "Outright markets with competitor odds"],
-  ["GET", "/results", "Settled markets (latest 500)"],
-];
-
-const jsonSample = `{
-  "generated_at": "2026-09-24T01:28:52.218Z",
-  "data": [{
-    "id": "sr:match:41001", "sport_id": "sr:sport:1",
-    "tournament_id": "sr:tournament:17", "home_team": "Arsenal",
-    "away_team": "Liverpool", "scheduled": "2026-09-24T19:00:00Z",
-    "status": "not_started", "match_minute": null,
-    "markets": [{ "market": "1x2", "specifier": null, "active": true,
-      "outcomes": [{ "id": "1", "odds": 2.35 }, { "id": "X", "odds": 3.4 }, { "id": "2", "odds": 2.95 }] }]
-  }]
-}`;
-
-const xmlSample = `<?xml version="1.0" encoding="UTF-8"?>
-<odds_change_list generated_at="1790213333732">
-  <sport_event id="sr:match:41001" scheduled="2026-09-24T19:00:00Z" status="not_started"
-               sport_id="sr:sport:1" category_id="sr:category:1" tournament_id="sr:tournament:17">
-    <competitors>
-      <competitor qualifier="home" name="Arsenal"/>
-      <competitor qualifier="away" name="Liverpool"/>
-    </competitors>
-    <odds>
-      <market id="1x2" status="1">
-        <outcome id="1" odds="2.35" active="1"/>
-        <outcome id="X" odds="3.4" active="1"/>
-        <outcome id="2" odds="2.95" active="1"/>
-      </market>
-    </odds>
-  </sport_event>
-</odds_change_list>`;
+import { PageShell } from "@/components/layout/PageShell";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { buildOpenApi, download, endpointList, ERROR_SAMPLE, errorTable, JSON_SAMPLE, toHtml, toMarkdown, XML_SAMPLE, type DocClient } from "@/lib/apiDocs";
+import { useAuth } from "@/providers/AuthProvider";
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -52,52 +22,136 @@ const Code = ({ children }: { children: string }) => (
 );
 
 export default function ApiDocsPage() {
+  const { roles } = useAuth();
+  const isAdmin = roles.includes("admin");
+  const [clientId, setClientId] = useState("");
+  const clients = useQuery({
+    queryKey: ["api_clients"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("api-clients-admin", { body: { action: "list" } });
+      if (error) throw error;
+      return (data as { clients: (DocClient & { id: string })[] }).clients;
+    },
+  });
+  const client = clients.data?.find((c) => c.id === clientId) ?? null;
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const spec = useMemo(() => buildOpenApi(FEED_BASE, client), [client]);
+  const eps = endpointList(spec);
+  const slug = client ? client.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") : "feed";
+
+  const exp = (kind: "openapi" | "md" | "html") => {
+    if (kind === "openapi") return download(`${slug}-openapi.json`, JSON.stringify(spec, null, 2), "application/json");
+    const md = toMarkdown(FEED_BASE, origin, client);
+    if (kind === "md") return download(`${slug}-api.md`, md, "text/markdown");
+    download(`${slug}-api.html`, toHtml(md, `${spec.info.title}${client ? ` – ${client.name}` : ""}`), "text/html");
+  };
+
   return (
-    <PageShell title="Feed API" description="Reference for customer integrations">
+    <PageShell
+      title="Feed API"
+      description="Reference for customer integrations"
+      actions={
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="h-7 rounded-sm border border-border bg-background px-2 text-[11px]" aria-label="Client">
+              <option value="">Generic (all clients)</option>
+              {(clients.data ?? []).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          )}
+          {(["openapi", "md", "html"] as const).map((k) => (
+            <Button key={k} size="sm" variant="outline" className="h-7 text-[11px] uppercase" onClick={() => exp(k)}>
+              <Download className="mr-1 h-3.5 w-3.5" /> {k === "openapi" ? "OpenAPI" : k === "md" ? "Markdown" : "HTML"}
+            </Button>
+          ))}
+        </div>
+      }
+    >
       <div className="max-w-4xl space-y-6 text-[12px]">
-        <Block title="Authentication">
-          <p>Send your API key in the <code>x-api-key</code> header. Keys are issued by your account manager.</p>
-          <Code>{`curl -H "x-api-key: fpk_live_…" "${FEED_BASE}/feed-api/matches?format=json"`}</Code>
-        </Block>
+        {client && (
+          <div className="rounded-sm border border-border bg-panel p-3 text-[11px]">
+            <b>{client.name}</b> · {client.rate_limit_per_min}/min · {client.formats.join("/").toUpperCase()} ·{" "}
+            {client.sport_ids.length ? `${client.sport_ids.length} sports` : "all sports"}
+            {client.tournament_ids.length ? `, ${client.tournament_ids.length} tournaments` : ""} · widget domains:{" "}
+            {client.allowed_domains.join(", ") || "—"}
+            <div className="mt-1 text-muted-foreground">Exports contain these entitlements, never API keys.</div>
+          </div>
+        )}
         <Block title="Base URL">
           <Code>{`${FEED_BASE}/feed-api`}</Code>
+        </Block>
+        <Block title="Authentication">
+          <p>
+            Send the server key in the <code>X-API-Key</code> header. Keys in the URL are rejected with <code>400 key_in_query</code>. Keys can have an
+            expiry date and an IP whitelist; <code>GET /me</code> shows your entitlements and remaining quota.
+          </p>
+          <Code>{`curl -H "X-API-Key: fpk_live_…" "${FEED_BASE}/feed-api/matches?format=json&limit=50"`}</Code>
         </Block>
         <Block title="Endpoints">
           <div className="overflow-hidden rounded-sm border border-border bg-panel">
             <table className="w-full text-[11px]">
               <tbody>
-                {endpoints.map(([m, p, d]) => (
-                  <tr key={p} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2 font-bold text-success">{m}</td>
-                    <td className="px-3 py-2 font-mono">{p}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{d}</td>
+                {eps.map((e) => (
+                  <tr key={e.path} className="border-b border-border align-top last:border-0">
+                    <td className="px-3 py-2 font-bold text-success">GET</td>
+                    <td className="px-3 py-2 font-mono">{e.path}</td>
+                    <td className="px-3 py-2">
+                      <div>{e.summary}</div>
+                      {e.params.filter((p) => p.name !== "format").length > 0 && (
+                        <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+                          {e.params.filter((p) => p.name !== "format").map((p) => `${p.name}${p.schema?.default !== undefined ? `=${String(p.schema.default)}` : ""}`).join(" · ")}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                <tr>
+                  <td className="px-3 py-2 font-bold text-success">GET</td>
+                  <td className="px-3 py-2 font-mono">/openapi.json</td>
+                  <td className="px-3 py-2">Public OpenAPI 3.1 specification (no key required)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            All data endpoints accept <code>format=json</code> (default) or <code>format=xml</code>. XML uses the <code>sport_event / market / outcome</code>{" "}
+            structure with <code>sr:</code> identifiers.
+          </p>
+        </Block>
+        <Block title="Response – JSON">
+          <Code>{JSON_SAMPLE}</Code>
+        </Block>
+        <Block title="Response – XML">
+          <Code>{XML_SAMPLE}</Code>
+        </Block>
+        <Block title="Caching, ETag & rate limiting">
+          <p>
+            Responses are cached for 15 s. Send the <code>ETag</code> back as <code>If-None-Match</code> to get <code>304 Not Modified</code>. Every response
+            carries <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code> and <code>X-RateLimit-Reset</code>; on <code>429</code> wait{" "}
+            <code>Retry-After</code> seconds.
+          </p>
+        </Block>
+        <Block title="Errors">
+          <Code>{ERROR_SAMPLE}</Code>
+          <div className="overflow-hidden rounded-sm border border-border bg-panel">
+            <table className="w-full text-[11px]">
+              <tbody>
+                {errorTable().map((e) => (
+                  <tr key={e.code} className="border-b border-border last:border-0">
+                    <td className="w-14 px-3 py-1.5 font-mono font-bold">{e.status}</td>
+                    <td className="w-44 px-3 py-1.5 font-mono">{e.code}</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">{e.msg}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p>
-            All endpoints accept <code>format=json</code> (default) or <code>format=xml</code>. The XML output uses the
-            common <code>sport_event / market / outcome</code> structure with <code>sr:</code> identifiers.
-          </p>
-        </Block>
-        <Block title="Response – JSON">
-          <Code>{jsonSample}</Code>
-        </Block>
-        <Block title="Response – XML">
-          <Code>{xmlSample}</Code>
-        </Block>
-        <Block title="Status codes">
-          <Code>{`200 OK            Data returned (cached for 15 seconds)
-400 Bad Request   Invalid parameter
-401 Unauthorized  Missing, invalid or disabled key
-403 Forbidden     Format not enabled for your account
-404 Not Found     Unknown endpoint or match
-429 Too Many      Rate limit per minute exceeded`}</Code>
         </Block>
         <Block title="Embeddable widget">
-          <p>Use a widget key; the page domain must be registered for your account.</p>
-          <Code>{`<script src="${typeof window !== "undefined" ? window.location.origin : ""}/widget.js"
+          <p>Use a widget key; the page domain must be registered for the account.</p>
+          <Code>{`<script src="${origin}/widget.js"
   data-key="fpw_live_…"
   data-api="${FEED_BASE}/feed-widget"
   data-sport="sr:sport:1"

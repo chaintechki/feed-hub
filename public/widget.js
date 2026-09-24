@@ -33,7 +33,7 @@
   function load() {
     fetch(api + "?key=" + encodeURIComponent(key) + (sport ? "&sport=" + encodeURIComponent(sport) : ""))
       .then(function (r) { return r.json(); })
-      .then(function (j) { if (j.error) throw new Error(j.error); render(j.data || []); })
+      .then(function (j) { if (j.error) throw new Error(j.error.message || j.error); render(j.data || []); })
       .catch(function (e) { root.innerHTML = "<style>" + css + '</style><div class="w"><div class="e">' + esc(e.message) + "</div></div>"; });
   }
   if (!key || !api) return;
