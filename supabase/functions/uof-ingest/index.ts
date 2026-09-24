@@ -1,6 +1,7 @@
 // Receives batched feed messages from the feed worker (HMAC-signed) and writes them to the database.
 // deno-lint-ignore-file no-explicit-any
 import { db } from "../_shared/feed.ts";
+import { catalog } from "../_shared/markets.ts";
 import { eventStatus, fetchFixture, mapMarket, parser, verifySigned } from "../_shared/uof.ts";
 
 const json = (d: unknown, status = 200) => new Response(JSON.stringify(d), { status, headers: { "Content-Type": "application/json" } });
@@ -28,6 +29,7 @@ Deno.serve(async (req) => {
   const stops = new Set<string>();
   const producers = new Map<number, any>();
   const errors: any[] = [];
+  const cat = await catalog(sb).catch(() => undefined);
 
   // Which referenced events exist?
   const parsed = msgs.map((m) => { try { return parser.parse(m.xml); } catch (e) { errors.push({ kind: "parse", error: String(e) }); return null; } });
@@ -68,7 +70,7 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         });
         for (const mk of mm.odds?.market ?? []) {
-          const map = mapMarket(Number(mk.id), mk.specifiers);
+          const map = mapMarket(Number(mk.id), mk.specifiers, cat);
           if (!map) continue;
           const outs = (mk.outcome ?? []).filter((o: any) => o.odds !== undefined);
           const outcomes = outs.map((o: any) => ({ label: map.label(String(o.id)), odds: o.active === "0" ? null : Number(o.odds) }));
@@ -84,7 +86,7 @@ Deno.serve(async (req) => {
         stops.add(ev);
       } else if (kind === "bet_settlement" || kind === "bet_cancel") {
         for (const mk of (kind === "bet_settlement" ? mm.outcomes?.market : mm.market) ?? []) {
-          const map = mapMarket(Number(mk.id), mk.specifiers);
+          const map = mapMarket(Number(mk.id), mk.specifiers, cat);
           if (!map) continue;
           if (kind === "bet_cancel") settle.push({ match_id: ev, market: map.market, specifier: map.specifier, outcome: null, state: "cancelled", settled_at: new Date().toISOString() });
           else for (const o of mk.outcome ?? []) if (String(o.result) === "1")
