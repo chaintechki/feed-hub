@@ -117,7 +117,7 @@ if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 log "Building production bundle"
 # The browser only ever talks to the own domain; nginx forwards to the backend.
-VITE_SUPABASE_URL="https://$DOMAIN" VITE_PUBLIC_ORIGIN="https://$DOMAIN" VITE_SW_HOSTS="$DOMAIN" npm run build
+FP_PRODUCTION_CLIENT=1 VITE_SUPABASE_URL="https://$DOMAIN" VITE_PUBLIC_ORIGIN="https://$DOMAIN" VITE_SW_HOSTS="$DOMAIN" npm run build
 if grep -rqiE "lovable|$UPSTREAM_HOST" dist; then
   echo "    Warning: build output still contains provider references:" && grep -rliE "lovable|$UPSTREAM_HOST" dist | head
 fi

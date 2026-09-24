@@ -81,9 +81,13 @@ export default defineConfig({
     }),
   ],
   resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "./src"),
-    },
+    alias: [
+      // Server builds use a lean backend client without development-environment helpers.
+      ...(process.env.FP_PRODUCTION_CLIENT === "1"
+        ? [{ find: /^@\/integrations\/supabase\/client$/, replacement: path.resolve(import.meta.dirname, "./src/lib/backendClient.ts") }]
+        : []),
+      { find: "@", replacement: path.resolve(import.meta.dirname, "./src") },
+    ],
   },
   server: {
     host: "::",
