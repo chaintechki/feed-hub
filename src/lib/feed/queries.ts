@@ -95,19 +95,34 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
       if (!rows.length) return [];
 
       const ids = rows.map((r) => r.id);
+      const idChunks = Array.from({ length: Math.ceil(ids.length / 75) }, (_, index) => ids.slice(index * 75, index * 75 + 75));
       const since = new Date(Date.now() - HEAT_WINDOW_MS).toISOString();
-      const [{ data: odds }, { data: tours }, { data: cats }, { data: sports }, { data: hist }, { data: alerts }, { data: logs }] = await Promise.all([
-        supabase
+      const [oddsResults, { data: tours, error: toursError }, { data: cats, error: catsError }, { data: sports, error: sportsError }, histResults, alertResults, logResults] = await Promise.all([
+        Promise.all(idChunks.map((chunk) => supabase
           .from("match_odds")
           .select("match_id,source,market,specifier,outcomes,margin,suspended,control_mode,market_group,alerted,updated_at")
-          .in("match_id", ids),
+          .in("match_id", chunk))),
         supabase.from("tournaments").select("id,name"),
         supabase.from("categories").select("id,name"),
         supabase.from("sports").select("id,name"),
-        supabase.from("odds_history").select("match_id,market,specifier,outcome,odds,prev_odds,changed_at").in("match_id", ids).gte("changed_at", since).order("changed_at"),
-        supabase.from("alerts").select("match_id,score").in("match_id", ids).is("acknowledged_at", null),
-        supabase.from("alert_log").select("match_id").in("match_id", ids),
+        Promise.all(idChunks.map((chunk) => supabase.from("odds_history").select("match_id,market,specifier,outcome,odds,prev_odds,changed_at").in("match_id", chunk).gte("changed_at", since).order("changed_at"))),
+        Promise.all(idChunks.map((chunk) => supabase.from("alerts").select("match_id,score").in("match_id", chunk).is("acknowledged_at", null))),
+        Promise.all(idChunks.map((chunk) => supabase.from("alert_log").select("match_id").in("match_id", chunk))),
       ]);
+      const failed = [
+        ...oddsResults.map((result) => result.error),
+        toursError,
+        catsError,
+        sportsError,
+        ...histResults.map((result) => result.error),
+        ...alertResults.map((result) => result.error),
+        ...logResults.map((result) => result.error),
+      ].find(Boolean);
+      if (failed) throw failed;
+      const odds = oddsResults.flatMap((result) => result.data ?? []);
+      const hist = histResults.flatMap((result) => result.data ?? []);
+      const alerts = alertResults.flatMap((result) => result.data ?? []);
+      const logs = logResults.flatMap((result) => result.data ?? []);
       const heat = buildHeat(hist ?? []);
       const score = new Map<string, number>();
       for (const a of alerts ?? []) if (a.match_id) score.set(a.match_id, (score.get(a.match_id) ?? 0) + Number(a.score));

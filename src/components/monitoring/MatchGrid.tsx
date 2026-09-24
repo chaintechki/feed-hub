@@ -115,11 +115,13 @@ function ActionChip({ label, active }: { label: string; active?: boolean }) {
 export function MatchGrid({
   matches,
   isLoading,
+  isError,
   onToggleSuspend,
   onToggleHotlist,
 }: {
   matches: MatchRow[];
   isLoading?: boolean;
+  isError?: boolean;
   onToggleSuspend?: (match: MatchRow) => void;
   onToggleHotlist?: (match: MatchRow) => void;
 }) {
@@ -158,7 +160,10 @@ export function MatchGrid({
         {isLoading ? (
           <p className="p-4 text-[11px] text-muted-foreground">{t("common.loading")}</p>
         ) : null}
-        {!isLoading && !matches.length ? (
+        {!isLoading && isError ? (
+          <p className="p-4 text-[11px] text-danger">{t("common.loadError")}</p>
+        ) : null}
+        {!isLoading && !isError && !matches.length ? (
           <p className="p-4 text-[11px] text-muted-foreground">{t("grid.noMatches")}</p>
         ) : null}
 

@@ -61,6 +61,7 @@
   },
   "common": {
     "loading": "Loading…",
+    "loadError": "Data could not be loaded. Please refresh.",
     "refresh": "Refresh",
     "save": "Save",
     "cancel": "Cancel",

@@ -61,6 +61,7 @@
   },
   "common": {
     "loading": "Lädt…",
+    "loadError": "Daten konnten nicht geladen werden. Bitte aktualisieren.",
     "refresh": "Aktualisieren",
     "save": "Speichern",
     "cancel": "Abbrechen",
