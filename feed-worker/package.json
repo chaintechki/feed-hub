@@ -1,0 +1,9 @@
+{
+  "name": "feed-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": { "start": "node index.mjs" },
+  "dependencies": { "amqplib": "^0.10.4" }
+}
