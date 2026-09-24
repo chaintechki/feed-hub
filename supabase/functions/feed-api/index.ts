@@ -1,4 +1,4 @@
-import { db, getMatches, getOutrights, getResults, getSports, overLimit, resolveKey, toXml, trackDenial } from "../_shared/feed.ts";
+import { cached, clientScopeKey, db, getMatches, getOutrights, getResults, getSports, overLimit, resolveKey, toXml, trackDenial, trackMeta } from "../_shared/feed.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     }
 
     let kind: string;
-    let data: unknown[];
+    let data: unknown[] = [];
     const sport = url.searchParams.get("sport") ?? undefined;
     const oddsMatch = path.match(/^\/matches\/([^/]+)\/odds$/);
     if (path === "/sports") { kind = "sports"; }
@@ -56,21 +56,26 @@ Deno.serve(async (req) => {
       return err("Rate limit exceeded", 429);
     }
 
-    if (kind === "sports") data = await getSports(sb, client);
-    else if (kind === "matches")
-      data = await getMatches(sb, client, { sport, withOdds: url.searchParams.get("odds") !== "false" });
-    else if (kind === "odds") {
-      data = await getMatches(sb, client, { id: decodeURIComponent(oddsMatch![1]), withOdds: true });
-      if (!data.length) {
-        await trackDenial(sb, client, apiKey, kind, "not_found");
-        return err("Match not found", 404);
-      }
-    } else if (kind === "outrights") data = await getOutrights(sb, client);
-    else data = await getResults(sb, client);
-
-    return format === "xml"
-      ? reply(toXml(kind, data as any[]), 200, "application/xml; charset=utf-8")
-      : reply(JSON.stringify({ generated_at: new Date().toISOString(), data }), 200, "application/json");
+    const odds = url.searchParams.get("odds") !== "false";
+    const ck = `api|${clientScopeKey(client)}|${kind}|${path}|${sport ?? ""}|${odds}|${format}`;
+    const { body, hit } = await cached(ck, async () => {
+      if (kind === "sports") data = await getSports(sb, client);
+      else if (kind === "matches") data = await getMatches(sb, client, { sport, withOdds: odds });
+      else if (kind === "odds") {
+        data = await getMatches(sb, client, { id: decodeURIComponent(oddsMatch![1]), withOdds: true });
+        if (!data.length) return null;
+      } else if (kind === "outrights") data = await getOutrights(sb, client);
+      else data = await getResults(sb, client);
+      return format === "xml"
+        ? toXml(kind, data as any[])
+        : JSON.stringify({ generated_at: new Date().toISOString(), data });
+    });
+    if (body === null) {
+      await trackDenial(sb, client, apiKey, kind, "not_found");
+      return err("Match not found", 404);
+    }
+    trackMeta(sb, client, kind, hit, body);
+    return reply(body, 200, format === "xml" ? "application/xml; charset=utf-8" : "application/json");
   } catch (e) {
     console.error(e);
     return err("Server error", 500);

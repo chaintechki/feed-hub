@@ -1,4 +1,4 @@
-import { db, getMatches, overLimit, resolveKey, trackDenial } from "../_shared/feed.ts";
+import { cached, clientScopeKey, db, getMatches, overLimit, resolveKey, trackDenial, trackMeta } from "../_shared/feed.ts";
 
 function hostAllowed(origin: string | null, allowed: string[]) {
   if (!origin) return false;
@@ -38,8 +38,13 @@ Deno.serve(async (req) => {
       await trackDenial(sb, client, key, "widget", "rate_limited");
       return json({ error: "Rate limit exceeded" }, 429);
     }
-    const data = await getMatches(sb, client, { sport: url.searchParams.get("sport") ?? undefined, withOdds: true });
-    return json({ data: data.filter((m: any) => m.status !== "ended" && m.status !== "closed") });
+    const sport = url.searchParams.get("sport") ?? undefined;
+    const { body, hit } = await cached(`widget|${clientScopeKey(client)}|${sport ?? ""}`, async () => {
+      const data = await getMatches(sb, client, { sport, withOdds: true });
+      return JSON.stringify({ data: data.filter((m: any) => m.status !== "ended" && m.status !== "closed") });
+    });
+    trackMeta(sb, client, "widget", hit, body!);
+    return new Response(body, { status: 200, headers: { ...cors, "Content-Type": "application/json" } });
   } catch (e) {
     console.error(e);
     return json({ error: "Server error" }, 500);
