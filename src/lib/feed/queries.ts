@@ -133,7 +133,9 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
       const catName = new Map((cats ?? []).map((c) => [c.id, c.name]));
       const sportName = new Map((sports ?? []).map((s) => [s.id, s.name]));
 
-      return rows.map((m) => ({
+      const withOdds = new Set(odds.map((o) => o.match_id));
+      const sorted = [...rows].sort((a, b) => Number(withOdds.has(b.id)) - Number(withOdds.has(a.id)) || a.scheduled.localeCompare(b.scheduled));
+      return sorted.map((m) => ({
         id: m.id,
         sportId: m.sport_id,
         categoryId: m.category_id,
