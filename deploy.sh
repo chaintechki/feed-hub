@@ -21,6 +21,7 @@
 #   sudo SKIP_PULL=1 ./deploy.sh      # build the working copy as-is
 #   sudo NO_BUMP=1 ./deploy.sh        # keep the current version number
 #   sudo SKIP_FIREWALL=1 ./deploy.sh  # do not touch ufw
+#   sudo ROTATE_FEED_CREDENTIALS=1 ./deploy.sh  # replace saved feed credentials
 #
 # Requirements: DNS A/AAAA record of $DOMAIN points to this server.
 
@@ -41,6 +42,7 @@ REPO_URL="${REPO_URL:-}"
 APP_DIR="${APP_DIR:-/opt/feed-panel}"
 SKIP_FIREWALL="${SKIP_FIREWALL:-0}"
 SWAP_SIZE="${SWAP_SIZE:-2G}"
+ROTATE_FEED_CREDENTIALS="${ROTATE_FEED_CREDENTIALS:-0}"
 SITE_FILE="/etc/nginx/sites-available/feed-panel.conf"
 SITE_LINK="/etc/nginx/sites-enabled/feed-panel.conf"
 CERT_DIR="/etc/letsencrypt/live/$DOMAIN"
@@ -485,9 +487,9 @@ fi
 # ---------------------------------------------------------------- 6. feed worker
 log "Installing feed worker (odds feed connection)"
 UOF_ENV=/etc/feed-panel/uof.env
-if [ ! -f "$UOF_ENV" ]; then
+if [ ! -f "$UOF_ENV" ] || [ "$ROTATE_FEED_CREDENTIALS" = "1" ]; then
   if [ -t 0 ]; then
-    echo "    Feed credentials are needed once (stored in $UOF_ENV, mode 600)."
+    echo "    Feed credentials are needed (stored in $UOF_ENV, mode 600)."
     read -rp "    Access token: " A_TOKEN
     read -rp "    API host [uof.oddz.club]: " A_API; A_API="${A_API:-uof.oddz.club}"
     read -rp "    MQ host [mq-uof.oddz.club]: " A_MQ; A_MQ="${A_MQ:-mq-uof.oddz.club}"
@@ -496,6 +498,24 @@ if [ ! -f "$UOF_ENV" ]; then
     read -rp "    MQ username: " A_USER
     read -rsp "    MQ password: " A_PASS; echo
     read -rp "    Node ID: " A_NODE
+    # Copy/paste can add whitespace or carriage returns. None of these values
+    # may contain surrounding whitespace in the provider configuration.
+    A_TOKEN="$(printf '%s' "$A_TOKEN" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    A_API="$(printf '%s' "$A_API" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    A_MQ="$(printf '%s' "$A_MQ" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    A_PORT="$(printf '%s' "$A_PORT" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    A_VHOST="$(printf '%s' "$A_VHOST" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    A_USER="$(printf '%s' "$A_USER" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    A_PASS="$(printf '%s' "$A_PASS" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    A_NODE="$(printf '%s' "$A_NODE" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -n "$A_TOKEN" ] || die "Feed access token must not be empty."
+    [ -n "$A_API" ] || die "Feed API host must not be empty."
+    [ -n "$A_MQ" ] || die "Feed MQ host must not be empty."
+    [[ "$A_PORT" =~ ^[0-9]+$ ]] || die "Feed MQ port must be numeric."
+    [ -n "$A_VHOST" ] || die "Feed virtual host must not be empty."
+    [ -n "$A_USER" ] || die "Feed MQ username must not be empty."
+    [ -n "$A_PASS" ] || die "Feed MQ password must not be empty."
+    [[ "$A_NODE" =~ ^[0-9]+$ ]] || die "Feed node ID must be numeric."
     umask 077
     cat > "$UOF_ENV" <<EOF
 UOF_ACCESS_TOKEN=$A_TOKEN
@@ -534,6 +554,7 @@ User=feedworker
 WorkingDirectory=/opt/feed-worker
 EnvironmentFile=/etc/feed-panel/uof.env
 EnvironmentFile=/etc/feed-panel/worker.env
+ExecStartPre=/usr/bin/env node auth-check.mjs
 ExecStart=/usr/bin/env node index.mjs
 Restart=always
 RestartSec=5
@@ -549,8 +570,13 @@ UNIT
   systemctl enable feed-worker >/dev/null 2>&1
   systemctl restart feed-worker
   sleep 3
-  systemctl is-active --quiet feed-worker && echo "    Feed worker running (logs: journalctl -u feed-worker -f)" \
-    || echo "    Warning: feed worker not running – check 'journalctl -u feed-worker'."
+  if systemctl is-active --quiet feed-worker; then
+    ok "feed authentication accepted; worker running (logs: journalctl -u feed-worker -f)"
+  elif journalctl -u feed-worker --since '-2 minutes' --no-pager 2>/dev/null | grep -q 'Feed authentication failed'; then
+    die "Feed authentication was rejected. Run: sudo ROTATE_FEED_CREDENTIALS=1 ./deploy.sh and enter the same access token saved in the backend. Also verify 'timedatectl status'."
+  else
+    die "Feed worker failed to start – check 'journalctl -u feed-worker -n 50 --no-pager'."
+  fi
 fi
 
 # Keep the working tree clean for the next git pull.

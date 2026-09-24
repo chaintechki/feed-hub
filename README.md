@@ -74,6 +74,8 @@ and enforced by database policies, never in the browser.
 Live odds arrive over a permanent message connection, which runs as the systemd service `feed-worker` on the web server (installed by `deploy.sh`).
 
 - Credentials: `/etc/feed-panel/uof.env` (asked once on the first interactive `sudo ./deploy.sh`, mode 640, owner root:feedworker).
+- To replace credentials, run `sudo ROTATE_FEED_CREDENTIALS=1 ./deploy.sh`. The access token must exactly match the securely stored backend value.
 - Logs: `journalctl -u feed-worker -f`
 - The worker forwards signed message batches to the backend, refreshes the schedule every 10 minutes and requests recovery automatically after interruptions.
+- Every service start first sends a signed authentication check. A mismatched token or incorrect server clock stops deployment with a clear error instead of allowing repeated `401 Unauthorized` requests.
 - Status in the panel: the indicator in the top bar (live / pre-match), admins can trigger a manual sync there.
