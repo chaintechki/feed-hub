@@ -20,6 +20,8 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("list") }),
   z.object({ action: z.literal("save"), id: Id.optional(), client: ClientFields }),
   z.object({ action: z.literal("delete"), id: Id }),
+  z.object({ action: z.literal("assign"), id: Id, owner_id: Id.nullable() }),
+  z.object({ action: z.literal("users") }),
   z.object({
     action: z.literal("create_key"),
     client_id: Id,
@@ -56,10 +58,27 @@ Deno.serve(async (req) => {
     const me = cl.claims.sub as string;
     const sb = db();
     const { data: isAdmin } = await sb.rpc("has_role", { _user_id: me, _role: "admin" });
-    if (!isAdmin) return json({ error: "Forbidden" }, 403);
 
     const p = Body.safeParse(await req.json());
     if (!p.success) return json({ error: p.error.flatten().fieldErrors }, 400);
+    const forbidden = () => json({ error: "Forbidden" }, 403);
+    const ownsClient = async (id: string) => {
+      if (isAdmin) return true;
+      const { data } = await sb.from("api_clients").select("owner_id").eq("id", id).maybeSingle();
+      return !!data && data.owner_id === me;
+    };
+    const ownsKey = async (keyId: string) => {
+      const { data } = await sb.from("api_keys").select("client_id").eq("id", keyId).maybeSingle();
+      return !!data && (await ownsClient(data.client_id));
+    };
+    const a0 = p.data;
+    if (!isAdmin) {
+      if (["delete", "assign", "users"].includes(a0.action)) return forbidden();
+      if (a0.action === "save" && (!a0.id || !(await ownsClient(a0.id)))) return forbidden();
+      if (a0.action === "create_key" && !(await ownsClient(a0.client_id))) return forbidden();
+      if ((a0.action === "rotate_key" || a0.action === "toggle_key" || a0.action === "delete_key") && !(await ownsKey(a0.key_id)))
+        return forbidden();
+    }
     if (p.data.action !== "list" && (await overUserLimit(sb, me, "api-clients-admin", 30)))
       return json({ error: "rate_limited" }, 429);
     const b = p.data;
@@ -69,11 +88,16 @@ Deno.serve(async (req) => {
     switch (b.action) {
       case "list": {
         const since = new Date(Date.now() - 86400000).toISOString();
-        const [c, k, u] = await Promise.all([
-          sb.from("api_clients").select("*").order("created_at"),
+        let cq = sb.from("api_clients").select("*").order("created_at");
+        if (!isAdmin) cq = cq.eq("owner_id", me);
+        const [c, k, u, pr] = await Promise.all([
+          cq,
           sb.from("api_keys").select("id,client_id,kind,prefix,active,last_used_at,created_at,expires_at,allowed_ips,label,rotated_from").order("created_at"),
           sb.from("api_usage").select("client_id,count").gte("minute", since),
+          sb.from("profiles").select("id,username"),
         ]);
+        const names: Record<string, string> = {};
+        for (const r of pr.data ?? []) names[r.id] = r.username ?? "";
         const usage: Record<string, number> = {};
         for (const r of u.data ?? []) usage[r.client_id] = (usage[r.client_id] ?? 0) + r.count;
         return json({
@@ -81,8 +105,24 @@ Deno.serve(async (req) => {
             ...x,
             keys: (k.data ?? []).filter((y) => y.client_id === x.id),
             calls_24h: usage[x.id] ?? 0,
+            owner_name: x.owner_id ? names[x.owner_id] ?? null : null,
           })),
+          is_admin: !!isAdmin,
         });
+      }
+      case "users": {
+        const { data } = await sb.from("profiles").select("id,username").order("username");
+        return json({ users: data ?? [] });
+      }
+      case "assign": {
+        if (b.owner_id) {
+          const { data: u } = await sb.from("profiles").select("id").eq("id", b.owner_id).maybeSingle();
+          if (!u) return json({ error: "User not found" }, 404);
+        }
+        const { error } = await sb.from("api_clients").update({ owner_id: b.owner_id }).eq("id", b.id);
+        if (error) return json({ error: error.message }, 400);
+        await audit("api_client.assign", b.id, { owner_id: b.owner_id });
+        return json({ ok: true });
       }
       case "save": {
         const q = b.id
