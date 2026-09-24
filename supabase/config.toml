@@ -4,3 +4,9 @@ verify_jwt = false
 
 [functions.feed-widget]
 verify_jwt = false
+
+[functions.uof-ingest]
+verify_jwt = false
+
+[functions.uof-sync]
+verify_jwt = false
