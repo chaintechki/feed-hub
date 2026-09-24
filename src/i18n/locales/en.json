@@ -129,43 +129,5 @@
       "not_found": "Match not found",
       "unknown:fp": "Unknown key"
     }
-  },
-  "costs": {
-    "title": "Cost overview",
-    "callsToday": "Calls today",
-    "hitRate": "Cache hit rate",
-    "egressToday": "Egress today",
-    "forecastDay": "Daily forecast (variable)",
-    "forecastMonth": "Monthly forecast",
-    "history": "Last 30 days",
-    "cacheHits": "Cache hits",
-    "dbCalls": "Database calls",
-    "denied": "Denied",
-    "breakdown": "Monthly forecast breakdown",
-    "invocations": "Function invocations",
-    "dbReads": "Database reads",
-    "egress": "Egress",
-    "fixed": "Plan base fee",
-    "upstream": "Upstream provider",
-    "client": "Client",
-    "calls7d": "Calls (7d)",
-    "markup": "Markup",
-    "perDay": "Cost / day",
-    "perMonth": "Cost / month",
-    "noClients": "No clients yet",
-    "prices": "Provider prices",
-    "save": "Save",
-    "saved": "Prices saved",
-    "hint": "Enter your actual prices – the forecast is only as accurate as these values.",
-    "f": {
-      "currency": "Currency",
-      "price_per_million_invocations": "Price / 1M invocations",
-      "price_per_million_db_reads": "Price / 1M DB reads",
-      "price_per_gb_egress": "Price / GB egress",
-      "included_invocations": "Included invocations / month",
-      "included_egress_gb": "Included GB / month",
-      "fixed_monthly": "Base fee / month",
-      "upstream_monthly": "Upstream / month"
-    }
   }
 }
