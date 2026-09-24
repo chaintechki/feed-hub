@@ -84,5 +84,27 @@
     "delete": "Benutzer löschen",
     "deleteConfirm": "Das Konto und seine Einstellungen werden dauerhaft entfernt.",
     "saved": "Gespeichert."
+  },
+  "api": {
+    "title": "API-Kunden",
+    "create": "Kunde anlegen",
+    "edit": "Kunde bearbeiten",
+    "docs": "API-Doku",
+    "none": "Noch keine API-Kunden.",
+    "markup": "Aufschlag",
+    "limit": "Limit",
+    "calls24": "Abrufe 24h",
+    "sports": "Sportarten",
+    "leagues": "Ligen",
+    "allData": "Alle Daten",
+    "deleteConfirm": "Kunde und alle Schlüssel löschen?",
+    "deleteKey": "Schlüssel löschen?",
+    "lastUsed": "Zuletzt genutzt",
+    "domains": "Widget-Domains",
+    "scope": "Datenfreigabe",
+    "scopeHint": "Nichts gewählt = alle Daten. Sportarten und Ligen schränken jeweils ein.",
+    "newKey": "Neuer Schlüssel erstellt",
+    "onceHint": "Schlüssel jetzt kopieren – er wird nicht erneut angezeigt.",
+    "example": "Einbindungsbeispiel"
   }
 }
