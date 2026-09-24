@@ -116,6 +116,8 @@
     "selectAll": "Alle auswählen",
     "deselectAll": "Alle abwählen",
     "addDomain": "Hinzufügen",
+    "hideForAdmins": "Für Admins ausblenden",
+    "hiddenFor": "für {{count}} Admins ausgeblendet",
     "owner": "Zuständiger Benutzer",
     "noOwner": "Keiner",
     "newKey": "Neuer Schlüssel erstellt",

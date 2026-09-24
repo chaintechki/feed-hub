@@ -116,6 +116,8 @@
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
     "addDomain": "Add",
+    "hideForAdmins": "Hide from admins",
+    "hiddenFor": "hidden from {{count}} admins",
     "owner": "Assigned user",
     "noOwner": "None",
     "newKey": "New key created",
