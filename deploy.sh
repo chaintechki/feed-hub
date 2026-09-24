@@ -490,5 +490,16 @@ fi
 # Keep the working tree clean for the next git pull.
 git checkout -- package.json package-lock.json 2>/dev/null || true
 
-log "Done"
-echo "    Version $(cat "$STATE_DIR/version" 2>/dev/null || echo '?') is live at https://$DOMAIN"
+log "Summary"
+CERT_END="$( [ -f "$CERT_DIR/fullchain.pem" ] && openssl x509 -enddate -noout -in "$CERT_DIR/fullchain.pem" | cut -d= -f2 || echo 'none')"
+printf '    %-16s %s\n' \
+  "Node.js" "$(node -v)" \
+  "npm" "$(npm -v)" \
+  "nginx" "$(nginx -v 2>&1 | cut -d/ -f2) ($(systemctl is-active nginx))" \
+  "certbot" "$(certbot --version 2>&1 | awk '{print $2}')" \
+  "Certificate" "$CERT_END" \
+  "Firewall" "$(ufw status | head -1 | cut -d' ' -f2)" \
+  "fail2ban" "$(systemctl is-active fail2ban)" \
+  "Feed worker" "$(systemctl is-active feed-worker 2>/dev/null || echo 'not installed')" \
+  "Version" "$(cat "$STATE_DIR/version" 2>/dev/null || echo '?')"
+if [ "$HTTPS_OK" = 1 ]; then echo "    Live at https://$DOMAIN"; else echo "    Live at http://$DOMAIN (HTTPS pending DNS)"; fi
