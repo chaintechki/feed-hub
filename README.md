@@ -32,22 +32,18 @@ belong in server-side functions.
 
 ## Production build and deployment
 
+On the server (Debian/Ubuntu, as root, inside the cloned repository):
+
 ```bash
-npm run build        # writes ./dist
-sudo ./deploy.sh     # builds and publishes to /var/www/html
-TARGET=/srv/www sudo ./deploy.sh
+sudo ./deploy.sh                       # feed.feedarea.net, branch main
+sudo BRANCH=release ./deploy.sh
+sudo SKIP_PULL=1 NO_BUMP=1 ./deploy.sh
 ```
 
-`deploy.sh` installs dependencies, builds, backs up the previous release to
-`/var/backups/feed-panel/<timestamp>` and syncs `dist/` to the web root.
-
-The app is a single-page application, so the web server needs an SPA fallback:
-
-```nginx
-location / {
-  try_files $uri $uri/ /index.html;
-}
-```
+`deploy.sh` installs missing packages, runs `git pull`, raises the patch
+version, builds, backs up the previous release, publishes to `/var/www/html`,
+writes the nginx site (SPA fallback, caching rules, security headers, backend
+proxy under the own domain) and requests/renews the Let's Encrypt certificate.
 
 ## Roles
 
