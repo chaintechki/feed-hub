@@ -94,6 +94,47 @@ export type Database = {
         }
         Relationships: []
       }
+      api_denials: {
+        Row: {
+          bucket_key: string
+          client_id: string | null
+          count: number
+          endpoint: string
+          id: number
+          key_hint: string
+          minute: string
+          reason: string
+        }
+        Insert: {
+          bucket_key: string
+          client_id?: string | null
+          count?: number
+          endpoint: string
+          id?: never
+          key_hint?: string
+          minute: string
+          reason: string
+        }
+        Update: {
+          bucket_key?: string
+          client_id?: string | null
+          count?: number
+          endpoint?: string
+          id?: never
+          key_hint?: string
+          minute?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_denials_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "api_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_keys: {
         Row: {
           active: boolean
@@ -671,6 +712,15 @@ export type Database = {
       api_track: {
         Args: { _client: string; _endpoint: string; _limit: number }
         Returns: number
+      }
+      api_track_denial: {
+        Args: {
+          _client: string
+          _endpoint: string
+          _key_hint: string
+          _reason: string
+        }
+        Returns: undefined
       }
       has_role: {
         Args: {
