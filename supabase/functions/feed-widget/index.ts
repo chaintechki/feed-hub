@@ -1,4 +1,4 @@
-import { db, getMatches, overLimit, resolveKey } from "../_shared/feed.ts";
+import { db, getMatches, overLimit, resolveKey, trackDenial } from "../_shared/feed.ts";
 
 function hostAllowed(origin: string | null, allowed: string[]) {
   if (!origin) return false;
@@ -24,10 +24,20 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const sb = db();
-    const client = await resolveKey(sb, url.searchParams.get("key"), "widget");
-    if (!client) return json({ error: "Invalid widget key" }, 401);
-    if (!hostAllowed(origin, client.allowed_domains)) return json({ error: "Domain not allowed" }, 403);
-    if (await overLimit(sb, client, "widget")) return json({ error: "Rate limit exceeded" }, 429);
+    const key = url.searchParams.get("key");
+    const client = await resolveKey(sb, key, "widget");
+    if (!client) {
+      await trackDenial(sb, null, key, "widget", "invalid_key");
+      return json({ error: "Invalid widget key" }, 401);
+    }
+    if (!hostAllowed(origin, client.allowed_domains)) {
+      await trackDenial(sb, client, key, "widget", "domain_denied");
+      return json({ error: "Domain not allowed" }, 403);
+    }
+    if (await overLimit(sb, client, "widget")) {
+      await trackDenial(sb, client, key, "widget", "rate_limited");
+      return json({ error: "Rate limit exceeded" }, 429);
+    }
     const data = await getMatches(sb, client, { sport: url.searchParams.get("sport") ?? undefined, withOdds: true });
     return json({ data: data.filter((m: any) => m.status !== "ended" && m.status !== "closed") });
   } catch (e) {
