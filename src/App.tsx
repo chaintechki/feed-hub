@@ -5,6 +5,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { UpdateDialog } from "@/components/layout/UpdateDialog";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { AuthProvider } from "@/providers/AuthProvider";
 
@@ -91,6 +92,7 @@ export default function App() {
             </Suspense>
           </BrowserRouter>
           <Toaster position="top-right" />
+          <UpdateDialog />
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
