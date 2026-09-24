@@ -205,7 +205,16 @@
     "emptyList": "Noch keine Buchmacher.",
     "addBookmakers": "Buchmacher hinzufügen",
     "suggested": "Empfohlen",
-    "tournament": "Turnier"
+    "tournament": "Turnier",
+    "tab": {
+      "general": "Allgemein",
+      "tournaments": "Turniere",
+      "templates": "Templates",
+      "ladders": "Ladders",
+      "bookmakers": "Buchmacher",
+      "feedOptions": "Feed-Optionen",
+      "outrights": "Outrights"
+    }
   },
   "fo": {
     "hint": "Globale Feed-Optionen für Pre-Match und Live.",
