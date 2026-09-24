@@ -23,8 +23,8 @@ npm run test:e2e     # end-to-end tests (dev server must run)
 Environment variables live in `.env`:
 
 ```
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_PUBLISHABLE_KEY=...
+VITE_..._URL=...              # backend address
+VITE_..._PUBLISHABLE_KEY=...  # public client key
 ```
 
 Only the publishable key is ever shipped to the browser. Privileged operations

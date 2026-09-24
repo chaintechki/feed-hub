@@ -365,5 +365,13 @@
     "symbol": "One symbol (e.g. ! ? # $)",
     "match": "Passwords match",
     "confirm": "Repeat password"
+  },
+  "errors": {
+    "rateLimited": "Too many requests. Please try again in a minute.",
+    "passwordLeaked": "This password is known from data breaches. Please choose another one.",
+    "weakPassword": "The password does not meet all rules.",
+    "usernameLocked": "The username can only be changed by an admin.",
+    "forbidden": "You are not allowed to do this.",
+    "generic": "Unknown error."
   }
 }

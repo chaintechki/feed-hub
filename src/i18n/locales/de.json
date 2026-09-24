@@ -365,5 +365,13 @@
     "symbol": "Ein Symbol (z. B. ! ? # $)",
     "match": "Passwörter stimmen überein",
     "confirm": "Passwort wiederholen"
+  },
+  "errors": {
+    "rateLimited": "Zu viele Anfragen. Bitte in einer Minute erneut versuchen.",
+    "passwordLeaked": "Dieses Passwort ist aus Datenlecks bekannt. Bitte ein anderes wählen.",
+    "weakPassword": "Das Passwort erfüllt nicht alle Regeln.",
+    "usernameLocked": "Der Benutzername kann nur von einem Admin geändert werden.",
+    "forbidden": "Keine Berechtigung für diese Aktion.",
+    "generic": "Unbekannter Fehler."
   }
 }

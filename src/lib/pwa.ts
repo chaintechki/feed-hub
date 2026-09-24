@@ -8,14 +8,14 @@ import { clearReloadMark, markReload, reloadAttempted } from "./version";
 const SW_URL = "/sw.js";
 export const SW_UPDATE_EVENT = "fp:sw-update";
 
+/** The worker only runs on the production domain(s); everywhere else it is removed. */
+const SW_HOSTS = ((import.meta.env["VITE_SW_HOSTS"] as string | undefined) ?? "feed.feedarea.net")
+  .split(",")
+  .map((h) => h.trim())
+  .filter(Boolean);
+
 function blockedHost(hostname: string) {
-  return (
-    hostname.startsWith("id-preview--") ||
-    hostname.startsWith("preview--") ||
-    hostname.endsWith("lovableproject.com") ||
-    hostname.endsWith("lovableproject-dev.com") ||
-    hostname.endsWith("beta.lovable.dev")
-  );
+  return !SW_HOSTS.includes(hostname) && hostname !== "localhost";
 }
 
 async function unregisterAll() {
