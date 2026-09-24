@@ -1,5 +1,6 @@
 import { XMLParser } from "npm:fast-xml-parser@4";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import type { CatalogEntry } from "./markets.ts";
 
 export const parser = new XMLParser({
   ignoreAttributes: false,
@@ -43,14 +44,20 @@ export const MARKET_MAP: Record<number, Map_> = {
   29: { market: "btts", group: "goals", outcomes: { "74": "Yes", "76": "No" } },
   60: { market: "ht_1x2", group: "half", outcomes: { "1": "1", "2": "X", "3": "2" } },
   68: { market: "ht_total", group: "half", spec: "total", outcomes: { "12": "Over", "13": "Under" } },
-  186: { market: "1x2", group: "main", outcomes: { "4": "1", "5": "2" } }, // winner (tennis etc.)
-  219: { market: "1x2", group: "main", outcomes: { "4": "1", "5": "2" } }, // winner incl. OT
+  186: { market: "1x2", group: "main", outcomes: { "4": "1", "5": "2" } }, // winner (tennis, volleyball, esports …)
+  219: { market: "1x2", group: "main", outcomes: { "4": "1", "5": "2" } }, // winner incl. OT (basketball)
+  251: { market: "1x2", group: "main", outcomes: { "4": "1", "5": "2" } }, // winner incl. extra innings (baseball)
+  340: { market: "1x2", group: "main", outcomes: { "4": "1", "5": "2" } }, // winner incl. super over (cricket)
 };
 
-export function mapMarket(id: number, specifiers?: string) {
+/** Map a UOF market; unknown ids keep key `m{id}` and get their group from the catalog. */
+export function mapMarket(id: number, specifiers?: string, cat?: Map<number, CatalogEntry>) {
   const m = MARKET_MAP[id];
   const specs = Object.fromEntries((specifiers ?? "").split("|").filter(Boolean).map((s) => s.split("=") as [string, string]));
-  if (!m) return { market: `m${id}`, group: "other", specifier: specifiers || null, label: (o: string) => o };
+  if (!m) {
+    const c = cat?.get(id);
+    return { market: `m${id}`, group: c ? c.group : "other", specifier: specifiers || null, label: (o: string) => o };
+  }
   if (m.spec && !specs[m.spec]) return null;
   if (!m.spec && specifiers && id !== 1) return null;
   return { market: m.market, group: m.group, specifier: m.spec ? specs[m.spec]! : null, label: (o: string) => m.outcomes[o] ?? o };
