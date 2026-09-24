@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790209847220,
+      "tag": "0000_feed_panel_core_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790210515451,
+      "tag": "0001_admin_profiles_read_and_demo_feed_data",
+      "breakpoints": true
+    }
+  ]
+}
