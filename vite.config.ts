@@ -1,4 +1,7 @@
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
+
+const FILE_ENV = loadEnv("production", process.cwd(), "VITE_");
+const envOf = (k: string) => process.env[k] ?? FILE_ENV[k] ?? "";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -31,6 +34,10 @@ function versionFile(): Plugin {
 
 export default defineConfig({
   define: {
+    __PUBLIC_ORIGIN__: JSON.stringify(envOf("VITE_PUBLIC_ORIGIN")),
+    __SW_HOSTS__: JSON.stringify(envOf("VITE_SW_HOSTS")),
+    __BACKEND_URL__: JSON.stringify(envOf("VITE_SUPABASE_URL")),
+    __BACKEND_KEY__: JSON.stringify(envOf("VITE_SUPABASE_PUBLISHABLE_KEY")),
     __APP_VERSION__: JSON.stringify(VERSION_INFO.version),
     __BUILD_ID__: JSON.stringify(VERSION_INFO.buildId),
     __BUILD_TIME__: JSON.stringify(VERSION_INFO.buildTime),

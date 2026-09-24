@@ -4,8 +4,8 @@ import { createClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
 
-const URL_ = import.meta.env.VITE_SUPABASE_URL as string;
-const KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const URL_ = __BACKEND_URL__;
+const KEY = __BACKEND_KEY__;
 
 function keyFetch(key: string): typeof fetch {
   return (input, init) => {
