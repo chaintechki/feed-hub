@@ -9,7 +9,7 @@ const SW_URL = "/sw.js";
 export const SW_UPDATE_EVENT = "fp:sw-update";
 
 /** The worker only runs on the production domain(s); everywhere else it is removed. */
-const SW_HOSTS = ((import.meta.env["VITE_SW_HOSTS"] as string | undefined) ?? "feed.feedarea.net")
+const SW_HOSTS = ((import.meta.env.VITE_SW_HOSTS as string | undefined) ?? "feed.feedarea.net")
   .split(",")
   .map((h) => h.trim())
   .filter(Boolean);
