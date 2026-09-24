@@ -1,21 +1,28 @@
 #!/usr/bin/env bash
-# Feed Panel – complete server deployment (Debian/Ubuntu).
+# Feed Panel – complete server deployment (Ubuntu 24.04 / Debian).
 #
-# Does everything in one run and can be re-run for every update:
-#   1. installs missing packages (git, nginx, certbot, rsync, Node.js 20+)
-#   2. git pull of the configured branch
-#   3. bumps the patch version, installs dependencies, builds
-#   4. backs up the current release and publishes dist/ to the web root
-#   5. writes the nginx site (SPA fallback, caching rules, security headers)
-#   6. requests / renews the Let's Encrypt certificate and enables HTTPS
+# Works on a completely empty server and can be re-run for every update.
+# Every step checks first and only installs / configures what is missing:
+#   0. bootstrap: installs git, clones REPO_URL to APP_DIR, restarts itself there
+#   1. system packages (nginx, certbot, ufw, fail2ban, build tools, ...)
+#   2. Node.js 20+ and npm, swap, time sync, firewall, fail2ban, security updates
+#   3. git pull, version bump, npm install, build, backup, publish to web root
+#   4. nginx site (SPA fallback, caching, security headers)
+#   5. DNS check, Let's Encrypt certificate, HTTPS, auto-renewal
+#   6. feed worker (systemd service)
+#   7. summary report
 #
-# Usage (as root, inside the cloned repository):
+# First install on an empty server (as root):
+#   curl -fsSL <raw-url-of-deploy.sh> -o deploy.sh
+#   sudo REPO_URL=https://github.com/<you>/<repo>.git bash deploy.sh
+# Updates (inside the cloned repository):
 #   sudo ./deploy.sh
 #   sudo DOMAIN=feed.feedarea.net BRANCH=main WITH_WWW=0 ./deploy.sh
 #   sudo SKIP_PULL=1 ./deploy.sh      # build the working copy as-is
 #   sudo NO_BUMP=1 ./deploy.sh        # keep the current version number
+#   sudo SKIP_FIREWALL=1 ./deploy.sh  # do not touch ufw
 #
-# Requirements: DNS A/AAAA record of $DOMAIN points to this server, ports 80 and 443 open.
+# Requirements: DNS A/AAAA record of $DOMAIN points to this server.
 
 set -euo pipefail
 
@@ -30,18 +37,53 @@ STATE_DIR="${STATE_DIR:-/var/lib/feed-panel}"
 ACME_ROOT="${ACME_ROOT:-/var/www/letsencrypt}"
 KEEP_BACKUPS="${KEEP_BACKUPS:-10}"
 NODE_MAJOR="${NODE_MAJOR:-20}"
+REPO_URL="${REPO_URL:-}"
+APP_DIR="${APP_DIR:-/opt/feed-panel}"
+SKIP_FIREWALL="${SKIP_FIREWALL:-0}"
+SWAP_SIZE="${SWAP_SIZE:-2G}"
 SITE_FILE="/etc/nginx/sites-available/feed-panel.conf"
 SITE_LINK="/etc/nginx/sites-enabled/feed-panel.conf"
 CERT_DIR="/etc/letsencrypt/live/$DOMAIN"
-
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$ROOT"
+export DEBIAN_FRONTEND=noninteractive
 
 log() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
+ok()  { printf '    \033[32m✓\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "Please run as root (sudo ./deploy.sh)."
 command -v apt-get >/dev/null || die "Only Debian/Ubuntu (apt) is supported."
+
+APT_UPDATED=0
+apt_install() {
+  local missing=()
+  for p in "$@"; do dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p"); done
+  if [ "${#missing[@]}" -eq 0 ]; then ok "already installed: $*"; return; fi
+  if [ "$APT_UPDATED" = 0 ]; then apt-get update -y; APT_UPDATED=1; fi
+  apt-get install -y --no-install-recommends "${missing[@]}"
+  ok "installed: ${missing[*]}"
+}
+
+# ---------------------------------------------------------------- 0. bootstrap
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || pwd)"
+if [ ! -d "$SCRIPT_DIR/.git" ] || [ ! -f "$SCRIPT_DIR/package.json" ]; then
+  log "Bootstrap: repository not found next to this script"
+  apt_install git ca-certificates curl
+  if [ ! -d "$APP_DIR/.git" ]; then
+    if [ -z "$REPO_URL" ]; then
+      [ -t 0 ] || die "Set REPO_URL=<git url> to clone the project."
+      read -rp "    Git repository URL (https with token or ssh): " REPO_URL
+    fi
+    [ -n "$REPO_URL" ] || die "No repository URL given."
+    mkdir -p "$(dirname "$APP_DIR")"
+    git clone --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
+  fi
+  chmod +x "$APP_DIR/deploy.sh"
+  ok "repository ready in $APP_DIR – continuing there"
+  exec "$APP_DIR/deploy.sh"
+fi
+
+ROOT="$SCRIPT_DIR"
+cd "$ROOT"
 
 SERVER_NAMES="$DOMAIN"
 CERT_DOMAINS=(-d "$DOMAIN")
@@ -52,24 +94,66 @@ fi
 
 # ---------------------------------------------------------------- 1. packages
 log "Checking system packages"
-PKGS=()
-for p in git nginx certbot rsync curl ca-certificates; do
-  dpkg -s "$p" >/dev/null 2>&1 || PKGS+=("$p")
-done
-if [ "${#PKGS[@]}" -gt 0 ]; then
-  apt-get update -y
-  DEBIAN_FRONTEND=noninteractive apt-get install -y "${PKGS[@]}"
-fi
+apt_install git curl ca-certificates gnupg lsb-release rsync nginx certbot \
+  ufw fail2ban unattended-upgrades dnsutils build-essential
 
+# ---------------------------------------------------------------- 2. Node.js / npm
+log "Checking Node.js and npm"
 node_ok() {
-  command -v node >/dev/null && [ "$(node -p 'process.versions.node.split(".")[0]')" -ge "$NODE_MAJOR" ]
+  command -v node >/dev/null && command -v npm >/dev/null \
+    && [ "$(node -p 'process.versions.node.split(".")[0]')" -ge "$NODE_MAJOR" ]
 }
 if ! node_ok; then
-  log "Installing Node.js $NODE_MAJOR"
+  log "Installing Node.js $NODE_MAJOR (NodeSource)"
   curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash -
-  DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+  apt-get install -y nodejs
 fi
-node_ok || die "Node.js >= $NODE_MAJOR is required."
+node_ok || die "Node.js >= $NODE_MAJOR with npm is required."
+ok "node $(node -v), npm $(npm -v)"
+
+log "Checking swap"
+if [ -z "$(swapon --noheadings 2>/dev/null)" ]; then
+  MEM_MB=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
+  if [ "$MEM_MB" -lt 8000 ] && [ ! -f /swapfile ]; then
+    fallocate -l "$SWAP_SIZE" /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+    chmod 600 /swapfile && mkswap /swapfile >/dev/null && swapon /swapfile
+    grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    ok "swap $SWAP_SIZE created"
+  else ok "no swap needed (${MEM_MB} MB RAM)"; fi
+else ok "swap active"; fi
+
+log "Checking time synchronisation"
+if command -v timedatectl >/dev/null; then
+  timedatectl set-ntp true 2>/dev/null || true
+  ok "NTP: $(timedatectl show -p NTPSynchronized --value 2>/dev/null || echo unknown)"
+fi
+
+if [ "$SKIP_FIREWALL" != "1" ]; then
+  log "Checking firewall"
+  ufw allow OpenSSH >/dev/null 2>&1 || ufw allow 22/tcp >/dev/null
+  ufw allow 80/tcp >/dev/null
+  ufw allow 443/tcp >/dev/null
+  if ufw status | grep -q 'Status: active'; then ok "ufw active (22, 80, 443 allowed)"
+  else ufw --force enable >/dev/null; ok "ufw enabled (22, 80, 443 allowed)"; fi
+fi
+
+log "Checking fail2ban"
+if [ ! -f /etc/fail2ban/jail.d/feed-panel.conf ]; then
+  cat > /etc/fail2ban/jail.d/feed-panel.conf <<'JAIL'
+[sshd]
+enabled = true
+maxretry = 5
+bantime = 1h
+JAIL
+fi
+systemctl enable --now fail2ban >/dev/null 2>&1 && systemctl restart fail2ban && ok "fail2ban active"
+
+log "Checking automatic security updates"
+if [ ! -f /etc/apt/apt.conf.d/20auto-upgrades ] || ! grep -q 'Unattended-Upgrade "1"' /etc/apt/apt.conf.d/20auto-upgrades; then
+  printf 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n' > /etc/apt/apt.conf.d/20auto-upgrades
+fi
+systemctl enable --now unattended-upgrades >/dev/null 2>&1 || true
+ok "unattended-upgrades active"
 
 # ---------------------------------------------------------------- 2. git pull
 if [ "${SKIP_PULL:-0}" != "1" ]; then
