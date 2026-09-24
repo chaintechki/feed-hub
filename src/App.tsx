@@ -20,6 +20,7 @@ const BulkActionsPage = lazy(() => import("@/pages/trading/BulkActionsPage"));
 const TemplatesPage = lazy(() => import("@/pages/trading/TemplatesPage"));
 const ConfigurationPage = lazy(() => import("@/pages/ConfigurationPage"));
 const UserSettingsPage = lazy(() => import("@/pages/UserSettingsPage"));
+const ApiDocsPage = lazy(() => import("@/pages/ApiDocsPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -63,6 +64,7 @@ export default function App() {
                   <Route path="/trading-tools/templates" element={<TemplatesPage />} />
                   <Route path="/settlements" element={<SettlementsPage />} />
                   <Route path="/configuration" element={<ConfigurationPage />} />
+                  <Route path="/api-docs" element={<ApiDocsPage />} />
                   <Route path="/settings" element={<UserSettingsPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Route>

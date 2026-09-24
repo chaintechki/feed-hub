@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { DataTable, type Column } from "@/components/common/DataTable";
+import { ApiClients } from "@/components/config/ApiClients";
 import { UserManagement } from "@/components/config/UserManagement";
 import { PageShell } from "@/components/layout/PageShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,7 +56,10 @@ export default function ConfigurationPage() {
     <PageShell title="Configuration" description="Operators, roles and system activity">
       <div className="space-y-6">
         {isAdmin ? (
-          <UserManagement />
+          <>
+            <UserManagement />
+            <ApiClients />
+          </>
         ) : (
           <section className="space-y-2">
             <h2 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Operators</h2>

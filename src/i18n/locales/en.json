@@ -84,5 +84,27 @@
     "delete": "Delete user",
     "deleteConfirm": "This permanently removes the account and its settings.",
     "saved": "Saved."
+  },
+  "api": {
+    "title": "API customers",
+    "create": "Create customer",
+    "edit": "Edit customer",
+    "docs": "API docs",
+    "none": "No API customers yet.",
+    "markup": "Markup",
+    "limit": "Limit",
+    "calls24": "Calls 24h",
+    "sports": "sports",
+    "leagues": "leagues",
+    "allData": "All data",
+    "deleteConfirm": "Delete this customer and all its keys?",
+    "deleteKey": "Delete this key?",
+    "lastUsed": "Last used",
+    "domains": "Widget domains",
+    "scope": "Data access",
+    "scopeHint": "Nothing selected = all data. Sport and league selections both restrict.",
+    "newKey": "New key created",
+    "onceHint": "Copy this key now – it will not be shown again.",
+    "example": "Integration example"
   }
 }
