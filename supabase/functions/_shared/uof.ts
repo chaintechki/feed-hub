@@ -65,7 +65,7 @@ export async function upsertEvents(sb: SupabaseClient, events: Ev[]) {
   const sports = new Map<string, any>(), cats = new Map<string, any>(), tours = new Map<string, any>(), matches: any[] = [];
   for (const e of events) {
     if (!String(e.id ?? "").startsWith("sr:match:")) continue;
-    const t = e.tournament, s = t?.sport?.[0] ?? t?.sport, c = t?.category?.[0] ?? t?.category;
+    const t = e.tournament?.[0] ?? e.tournament, s = t?.sport?.[0] ?? t?.sport, c = t?.category?.[0] ?? t?.category;
     const comps: Ev[] = e.competitors?.competitor ?? [];
     const home = comps.find((x) => x.qualifier === "home"), away = comps.find((x) => x.qualifier === "away");
     if (!t?.id || !s?.id || !c?.id || !home || !away) continue;

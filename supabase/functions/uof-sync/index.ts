@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
         outcomes: (m.outcomes?.outcome ?? []).map((o: any) => ({ id: String(o.id), name: o.name })),
         specifiers: (m.specifiers?.specifier ?? []).map((s: any) => s.name).join("|") || null,
       }));
-      for (let i = 0; i < rows.length; i += 500) await sb.from("uof_markets").upsert(rows.slice(i, i + 500), { onConflict: "id,variant" });
+      for (let i = 0; i < rows.length; i += 500) { const { error } = await sb.from("uof_markets").upsert(rows.slice(i, i + 500), { onConflict: "id,variant" }); if (error) throw new Error(`markets: ${error.message}`); }
       result.markets = rows.length;
     }
     result.ms = Date.now() - started;
