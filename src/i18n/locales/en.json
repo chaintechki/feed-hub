@@ -1,0 +1,75 @@
+{
+  "nav": {
+    "monitoring": "Monitoring",
+    "alerts": "Alerts",
+    "archive": "Archive",
+    "tradingTools": "Trading Tools",
+    "settlements": "Settlements",
+    "configuration": "Configuration",
+    "userSettings": "User Settings",
+    "supportPortal": "Support Portal",
+    "news": "News",
+    "help": "Help",
+    "operational": "Operational",
+    "oddsFormat": "Odds format",
+    "monitorMatches": "Monitor Matches",
+    "monitorOutrights": "Monitor Outrights",
+    "signOut": "Sign out"
+  },
+  "tree": {
+    "activeTree": "Active tree",
+    "fullTree": "Full tree",
+    "clear": "Clear",
+    "search": "Search sport, category, tournament"
+  },
+  "filters": {
+    "alerted": "Alerted",
+    "semiAuto": "Semi auto",
+    "manual": "Manual",
+    "hotlisted": "Hotlisted",
+    "commented": "Commented",
+    "withOdds": "With odds",
+    "withOwnOdds": "With own odds",
+    "controllable": "Controllable",
+    "hours24": "24 hours",
+    "providerOnly": "Provider only",
+    "earlyOddsAvailable": "Available for early odds",
+    "withEarlyOdds": "With early odds",
+    "find": "Find"
+  },
+  "grid": {
+    "odds": "Odds",
+    "own": "Own",
+    "average": "Average",
+    "suspend": "Suspend",
+    "market1x2": "1X2",
+    "total": "Total",
+    "handicap": "Handicap",
+    "noMatches": "No matches for the current selection."
+  },
+  "auth": {
+    "title": "Feed Panel sign in",
+    "subtitle": "Sign in with your operator account",
+    "email": "E-mail",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signUp": "Create account",
+    "toggleToSignUp": "Need an account? Register",
+    "toggleToSignIn": "Already registered? Sign in",
+    "checkEmail": "Check your inbox to confirm your address."
+  },
+  "common": {
+    "loading": "Loading…",
+    "refresh": "Refresh",
+    "save": "Save",
+    "cancel": "Cancel",
+    "export": "Export",
+    "all": "All",
+    "none": "None",
+    "from": "From",
+    "to": "To",
+    "status": "Status",
+    "actions": "Actions",
+    "search": "Search"
+  }
+}

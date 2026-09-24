@@ -1,0 +1,75 @@
+{
+  "nav": {
+    "monitoring": "Monitoring",
+    "alerts": "Alerts",
+    "archive": "Archiv",
+    "tradingTools": "Trading Tools",
+    "settlements": "Abrechnungen",
+    "configuration": "Konfiguration",
+    "userSettings": "Einstellungen",
+    "supportPortal": "Support-Portal",
+    "news": "News",
+    "help": "Hilfe",
+    "operational": "Betriebsbereit",
+    "oddsFormat": "Quotenformat",
+    "monitorMatches": "Spiele",
+    "monitorOutrights": "Outrights",
+    "signOut": "Abmelden"
+  },
+  "tree": {
+    "activeTree": "Aktiver Baum",
+    "fullTree": "Voller Baum",
+    "clear": "Leeren",
+    "search": "Sportart, Land, Liga suchen"
+  },
+  "filters": {
+    "alerted": "Alarmiert",
+    "semiAuto": "Halbautomatisch",
+    "manual": "Manuell",
+    "hotlisted": "Hotlist",
+    "commented": "Kommentiert",
+    "withOdds": "Mit Quoten",
+    "withOwnOdds": "Mit eigenen Quoten",
+    "controllable": "Steuerbar",
+    "hours24": "24 Stunden",
+    "providerOnly": "Nur Provider",
+    "earlyOddsAvailable": "Frühquoten verfügbar",
+    "withEarlyOdds": "Mit Frühquoten",
+    "find": "Suchen"
+  },
+  "grid": {
+    "odds": "Quoten",
+    "own": "Eigene",
+    "average": "Durchschnitt",
+    "suspend": "Sperren",
+    "market1x2": "1X2",
+    "total": "Total",
+    "handicap": "Handicap",
+    "noMatches": "Keine Spiele für die aktuelle Auswahl."
+  },
+  "auth": {
+    "title": "Feed Panel Anmeldung",
+    "subtitle": "Mit Ihrem Betreiberkonto anmelden",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "signIn": "Anmelden",
+    "signUp": "Konto erstellen",
+    "toggleToSignUp": "Noch kein Konto? Registrieren",
+    "toggleToSignIn": "Bereits registriert? Anmelden",
+    "checkEmail": "Bitte bestätigen Sie Ihre E-Mail-Adresse."
+  },
+  "common": {
+    "loading": "Lädt…",
+    "refresh": "Aktualisieren",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "export": "Export",
+    "all": "Alle",
+    "none": "Keine",
+    "from": "Von",
+    "to": "Bis",
+    "status": "Status",
+    "actions": "Aktionen",
+    "search": "Suche"
+  }
+}
