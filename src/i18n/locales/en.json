@@ -214,9 +214,12 @@
       "all": "All",
       "main": "Main",
       "goals": "Goals",
-      "handicap": "Handicap",
-      "halves": "Halves",
-      "score": "Score"
+      "half": "Halves",
+      "periods": "Periods",
+      "corners": "Corners",
+      "cards": "Cards",
+      "players": "Players",
+      "other": "Other"
     },
     "quick": {
       "alerted": "Alerted",
@@ -403,5 +406,9 @@
     "synced": "Synchronised: {{count}} matches",
     "syncFailed": "Synchronisation failed",
     "checking": "Checking…"
+  },
+  "apiClients": {
+    "marketGroups": "Market groups",
+    "marketGroupsHint": "No selection = all markets"
   }
 }

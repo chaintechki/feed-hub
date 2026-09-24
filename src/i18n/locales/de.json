@@ -212,11 +212,14 @@
     "noMarkets": "Keine Märkte für diese Auswahl.",
     "group": {
       "all": "Alle",
-      "main": "Main",
+      "main": "Haupt",
       "goals": "Tore",
-      "handicap": "Handicap",
-      "halves": "Halbzeiten",
-      "score": "Ergebnis"
+      "half": "Halbzeiten",
+      "periods": "Abschnitte",
+      "corners": "Ecken",
+      "cards": "Karten",
+      "players": "Spieler",
+      "other": "Sonstige"
     },
     "quick": {
       "alerted": "Alerted",
@@ -403,5 +406,9 @@
     "synced": "Synchronisiert: {{count}} Spiele",
     "syncFailed": "Synchronisierung fehlgeschlagen",
     "checking": "Prüfe…"
+  },
+  "apiClients": {
+    "marketGroups": "Marktgruppen",
+    "marketGroupsHint": "Keine Auswahl = alle Märkte"
   }
 }

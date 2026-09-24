@@ -14,11 +14,12 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { heatKey } from "@/lib/feed/heat";
 import { useMatchUp } from "@/lib/feed/queries";
+import { useMarketCatalog } from "@/lib/feed/marketCatalog";
 import type { OddsRow } from "@/lib/feed/types";
 import { cn } from "@/lib/utils";
 import { friendlyError } from "@/lib/errors";
 
-const GROUPS = ["all", "main", "goals", "handicap", "halves", "score"] as const;
+const GROUPS = ["all", "main", "goals", "half", "periods", "corners", "cards", "players", "other"] as const;
 const MODES = ["auto", "semi_auto", "manual"] as const;
 type QuickFilter = "alerted" | "semi_auto" | "manual";
 
@@ -32,6 +33,10 @@ export default function MatchUpPage() {
   const [quick, setQuick] = useState<QuickFilter[]>([]);
   const [term, setTerm] = useState("");
   const { format } = useOddsFormat();
+  const { marketName, outcomeName } = useMarketCatalog();
+  const home = String((data?.match as { home_team?: string } | null)?.home_team ?? "");
+  const away = String((data?.match as { away_team?: string } | null)?.away_team ?? "");
+  const mName = (m: string, sp: string | null) => marketName(m, sp, home, away) ?? `${t(`mk.${m}`, m)} ${sp ?? ""}`;
   const lists = useBookmakerLists();
   const books = useBookmakers();
   const bmOdds = useQuery({ queryKey: ["bm-odds", [id]], enabled: !!id, queryFn: () => fetchBookmakerOdds([id!]) });
@@ -44,10 +49,11 @@ export default function MatchUpPage() {
       if (quick.includes("alerted") && !o.alerted) return false;
       if (quick.includes("semi_auto") && o.controlMode !== "semi_auto") return false;
       if (quick.includes("manual") && o.controlMode !== "manual") return false;
-      if (q && !`${t(`mk.${o.market}`, o.market)} ${o.specifier ?? ""}`.toLowerCase().includes(q)) return false;
+      if (q && !mName(o.market, o.specifier).toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [data, group, quick, term, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, group, quick, term, t, marketName]);
 
   const patch = useMutation({
     mutationFn: async ({ row, change }: { row: OddsRow; change: { suspended?: boolean; control_mode?: string } }) => {
@@ -147,7 +153,7 @@ export default function MatchUpPage() {
                     <td key={i} className="w-[110px] px-1 py-0.5">
                       {oc ? (
                         <div className="flex items-center gap-1">
-                          <span className="w-8 truncate text-[10px] text-muted-foreground">{oc.label}</span>
+                          <span className="w-14 truncate text-[10px] text-muted-foreground" title={outcomeName(own.market, own.specifier, oc.label, home, away)}>{outcomeName(own.market, own.specifier, oc.label, home, away)}</span>
                           <div className="flex-1">
                             <OddsCell
                               outcome={oc}
@@ -164,7 +170,7 @@ export default function MatchUpPage() {
               return [
                 <tr key={own.market + own.specifier + "o"} className={cn("border-t border-border", own.alerted && "bg-row-alt")}>
                   <td rowSpan={2} className="border-r border-border px-3 py-1 font-semibold">
-                    {t(`mk.${own.market}`, own.market)} {own.specifier}
+                    {mName(own.market, own.specifier)}
                     {own.alerted && <span className="ml-2 rounded-sm bg-danger px-1 text-[9px] font-bold text-danger-foreground">ALERT</span>}
                   </td>
                   <td className="px-2 font-semibold">{t("grid.own")}</td>
