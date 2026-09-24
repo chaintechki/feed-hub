@@ -421,6 +421,21 @@ export type Database = {
         }
         Relationships: []
       }
+      captcha_used: {
+        Row: {
+          expires_at: string
+          id: string
+        }
+        Insert: {
+          expires_at: string
+          id: string
+        }
+        Update: {
+          expires_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           country_code: string | null
@@ -564,6 +579,27 @@ export type Database = {
           kind?: string
           name?: string
           values?: Json
+        }
+        Relationships: []
+      }
+      login_attempts: {
+        Row: {
+          count: number
+          key: string
+          locked_until: string | null
+          updated_at: string
+        }
+        Insert: {
+          count?: number
+          key: string
+          locked_until?: string | null
+          updated_at?: string
+        }
+        Update: {
+          count?: number
+          key?: string
+          locked_until?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

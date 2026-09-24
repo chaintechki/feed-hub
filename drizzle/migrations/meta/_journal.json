@@ -78,6 +78,13 @@
       "when": 1790217961027,
       "tag": "0010_api_keys_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790220436453,
+      "tag": "0011_login_captcha",
+      "breakpoints": true
     }
   ]
 }
