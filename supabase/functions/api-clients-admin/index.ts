@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 import { db, sha256 } from "../_shared/feed.ts";
+import { isValidIpRule } from "../_shared/api-core.ts";
 
 const Id = z.string().uuid();
 const ClientFields = z.object({
@@ -18,7 +19,15 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("list") }),
   z.object({ action: z.literal("save"), id: Id.optional(), client: ClientFields }),
   z.object({ action: z.literal("delete"), id: Id }),
-  z.object({ action: z.literal("create_key"), client_id: Id, kind: z.enum(["server", "widget"]) }),
+  z.object({
+    action: z.literal("create_key"),
+    client_id: Id,
+    kind: z.enum(["server", "widget"]),
+    label: z.string().trim().max(60).default(""),
+    expires_at: z.string().datetime().nullable().default(null),
+    allowed_ips: z.array(z.string().trim().max(64).refine(isValidIpRule, "invalid IP/CIDR")).max(50).default([]),
+  }),
+  z.object({ action: z.literal("rotate_key"), key_id: Id, grace_hours: z.number().int().min(0).max(168).default(24) }),
   z.object({ action: z.literal("toggle_key"), key_id: Id, active: z.boolean() }),
   z.object({ action: z.literal("delete_key"), key_id: Id }),
 ]);
@@ -58,7 +67,7 @@ Deno.serve(async (req) => {
         const since = new Date(Date.now() - 86400000).toISOString();
         const [c, k, u] = await Promise.all([
           sb.from("api_clients").select("*").order("created_at"),
-          sb.from("api_keys").select("id,client_id,kind,prefix,active,last_used_at,created_at").order("created_at"),
+          sb.from("api_keys").select("id,client_id,kind,prefix,active,last_used_at,created_at,expires_at,allowed_ips,label,rotated_from").order("created_at"),
           sb.from("api_usage").select("client_id,count").gte("minute", since),
         ]);
         const usage: Record<string, number> = {};
@@ -86,15 +95,49 @@ Deno.serve(async (req) => {
         return json({ ok: true });
       }
       case "create_key": {
+        if (b.expires_at && new Date(b.expires_at).getTime() <= Date.now()) return json({ error: "expires_at must be in the future" }, 400);
         const key = `${b.kind === "widget" ? "fpw" : "fpk"}_live_${randomKey()}`;
         const { data, error } = await sb
           .from("api_keys")
-          .insert({ client_id: b.client_id, kind: b.kind, prefix: key.slice(0, 14), key_hash: await sha256(key) })
+          .insert({
+            client_id: b.client_id,
+            kind: b.kind,
+            prefix: key.slice(0, 14),
+            key_hash: await sha256(key),
+            label: b.label,
+            expires_at: b.expires_at,
+            allowed_ips: b.kind === "server" ? b.allowed_ips : [],
+          })
           .select("id")
           .single();
         if (error) return json({ error: error.message }, 400);
-        await audit("api_key.create", b.client_id, { key_id: data.id, kind: b.kind });
+        await audit("api_key.create", b.client_id, { key_id: data.id, kind: b.kind, expires_at: b.expires_at, ips: b.allowed_ips.length });
         return json({ id: data.id, key });
+      }
+      case "rotate_key": {
+        const { data: old, error: oe } = await sb.from("api_keys").select("*").eq("id", b.key_id).single();
+        if (oe || !old) return json({ error: "Key not found" }, 404);
+        const key = `${old.kind === "widget" ? "fpw" : "fpk"}_live_${randomKey()}`;
+        const { data, error } = await sb
+          .from("api_keys")
+          .insert({
+            client_id: old.client_id,
+            kind: old.kind,
+            prefix: key.slice(0, 14),
+            key_hash: await sha256(key),
+            label: old.label,
+            expires_at: old.expires_at && new Date(old.expires_at).getTime() > Date.now() ? old.expires_at : null,
+            allowed_ips: old.allowed_ips,
+            rotated_from: old.id,
+          })
+          .select("id")
+          .single();
+        if (error) return json({ error: error.message }, 400);
+        const graceEnd = new Date(Date.now() + b.grace_hours * 3600_000).toISOString();
+        const oldEnd = old.expires_at && old.expires_at < graceEnd ? old.expires_at : graceEnd;
+        await sb.from("api_keys").update({ expires_at: oldEnd }).eq("id", old.id);
+        await audit("api_key.rotate", old.client_id, { old_key: old.id, new_key: data.id, grace_hours: b.grace_hours });
+        return json({ id: data.id, key, old_expires_at: oldEnd });
       }
       case "toggle_key": {
         await sb.from("api_keys").update({ active: b.active }).eq("id", b.key_id);

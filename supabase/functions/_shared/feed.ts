@@ -221,7 +221,7 @@ const attrs = (o: Record<string, unknown>) =>
     .join("");
 const ts = () => Date.now();
 
-export function toXml(kind: string, data: any[]): string {
+export function toXml(kind: string, data: any[], meta?: Record<string, number>): string {
   const head = `<?xml version="1.0" encoding="UTF-8"?>\n`;
   if (kind === "sports")
     return head + `<sports generated_at="${ts()}">` + data.map((s) =>
@@ -230,7 +230,7 @@ export function toXml(kind: string, data: any[]): string {
         c.tournaments.map((t: any) => `<tournament${attrs({ id: t.id, name: t.name })}/>`).join("") +
         `</category>`).join("") + `</sport>`).join("") + `</sports>`;
   if (kind === "matches" || kind === "odds")
-    return head + `<odds_change_list generated_at="${ts()}">` + data.map((m) =>
+    return head + `<odds_change_list generated_at="${ts()}"${meta ? attrs(meta) : ""}>` + data.map((m) =>
       `<sport_event${attrs({ id: m.id, scheduled: m.scheduled, status: m.status, match_minute: m.match_minute, sport_id: m.sport_id, category_id: m.category_id, tournament_id: m.tournament_id })}>` +
       `<competitors><competitor qualifier="home"${attrs({ name: m.home_team })}/><competitor qualifier="away"${attrs({ name: m.away_team })}/></competitors>` +
       (m.markets.length ? `<odds>` + m.markets.map((mk: any) =>
