@@ -12,7 +12,13 @@ import { useAuth } from "@/providers/AuthProvider";
 
 type Producer = { id: number; name: string; last_alive_at: string | null; last_message_at: string | null; down: boolean };
 
-const isUp = (p: Producer) => !p.down && !!p.last_alive_at && Date.now() - Date.parse(p.last_alive_at) < 60_000;
+const isUp = (p: Producer) => {
+  const latest = Math.max(
+    p.last_alive_at ? Date.parse(p.last_alive_at) : 0,
+    p.last_message_at ? Date.parse(p.last_message_at) : 0,
+  );
+  return !p.down && latest > 0 && Date.now() - latest < 5 * 60_000;
+};
 
 export function FeedStatus() {
   const { t } = useTranslation();

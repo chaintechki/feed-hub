@@ -34,7 +34,7 @@ export default function MonitorMatches() {
     () => (activeTab ? { sportIds: [], categoryIds: [], tournamentIds: [activeTab] } : selection),
     [activeTab, selection],
   );
-  const { data: matches = [], isLoading } = useMatches(effectiveSelection);
+  const { data: matches = [], isLoading, isError } = useMatches(effectiveSelection);
 
   const filtered = useMemo(() => {
     const q = term.trim().toLowerCase();
@@ -110,6 +110,7 @@ export default function MonitorMatches() {
           <MatchGrid
             matches={filtered}
             isLoading={isLoading}
+            isError={isError}
             onToggleSuspend={(m) => patchMatch.mutate({ id: m.id, patch: { suspended: !m.suspended } })}
             onToggleHotlist={(m) => patchMatch.mutate({ id: m.id, patch: { hotlisted: !m.hotlisted } })}
           />
