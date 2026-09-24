@@ -2,23 +2,29 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 
-const DOMAIN = "feedpanel.local";
+import { USERNAME_DOMAIN, USERNAME_RE, passwordValid, pepperPassword } from "../_shared/auth-core.ts";
+
+const DOMAIN = USERNAME_DOMAIN;
+const Password = z.string().max(128).refine(passwordValid, "weak_password");
 const Role = z.enum(["admin", "trader", "viewer"]);
 const Id = z.string().uuid();
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("list") }),
   z.object({
     action: z.literal("create"),
-    username: z.string().regex(/^[a-z0-9._-]{3,32}$/),
-    password: z.string().min(8).max(128),
+    username: z.string().regex(USERNAME_RE),
+    password: Password,
     role: Role,
   }),
   z.object({ action: z.literal("set_role"), user_id: Id, role: Role }),
-  z.object({ action: z.literal("reset_password"), user_id: Id, password: z.string().min(8).max(128) }),
+  z.object({ action: z.literal("reset_password"), user_id: Id, password: Password }),
+  z.object({ action: z.literal("check_username"), username: z.string().max(64) }),
   z.object({ action: z.literal("ban"), user_id: Id }),
   z.object({ action: z.literal("unban"), user_id: Id }),
   z.object({ action: z.literal("delete"), user_id: Id }),
 ]);
+
+const PEPPER = Deno.env.get("PASSWORD_PEPPER")!;
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -55,6 +61,16 @@ Deno.serve(async (req) => {
       admin.from("audit_log").insert({ user_id: me, action, entity: "user", entity_id: id, details });
 
     switch (b.action) {
+      case "check_username": {
+        const u = b.username.trim().toLowerCase();
+        if (!USERNAME_RE.test(u)) return json({ valid: false, available: false });
+        const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
+        if (error) throw error;
+        const taken = data.users.some(
+          (x) => x.email?.toLowerCase() === `${u}@${DOMAIN}` || (x.user_metadata?.username as string) === u,
+        );
+        return json({ valid: true, available: !taken });
+      }
       case "list": {
         const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
         if (error) throw error;
@@ -72,7 +88,7 @@ Deno.serve(async (req) => {
       case "create": {
         const { data, error } = await admin.auth.admin.createUser({
           email: `${b.username}@${DOMAIN}`,
-          password: b.password,
+          password: await pepperPassword(PEPPER, b.username, b.password),
           email_confirm: true,
           user_metadata: { username: b.username },
         });
@@ -91,7 +107,12 @@ Deno.serve(async (req) => {
         return json({ ok: true });
       }
       case "reset_password": {
-        const { error } = await admin.auth.admin.updateUserById(b.user_id, { password: b.password });
+        const { data: target, error: gErr } = await admin.auth.admin.getUserById(b.user_id);
+        if (gErr || !target.user) return json({ error: "User not found" }, 404);
+        const uname = (target.user.user_metadata?.username as string) ?? target.user.email!.split("@")[0];
+        const { error } = await admin.auth.admin.updateUserById(b.user_id, {
+          password: await pepperPassword(PEPPER, uname, b.password),
+        });
         if (error) return json({ error: error.message }, 400);
         await audit("user.reset_password", b.user_id);
         return json({ ok: true });
