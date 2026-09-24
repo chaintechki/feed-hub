@@ -17,7 +17,7 @@ const isUp = (p: Producer) => {
     p.last_alive_at ? Date.parse(p.last_alive_at) : 0,
     p.last_message_at ? Date.parse(p.last_message_at) : 0,
   );
-  return !p.down && latest > 0 && Date.now() - latest < 5 * 60_000;
+  return !p.down && latest > 0 && Date.now() - latest < 3 * 60_000;
 };
 
 export function FeedStatus() {
@@ -74,7 +74,7 @@ export function FeedStatus() {
                 {p.id === 1 ? t("feed.live") : t("feed.prematch")}
               </span>
               <span className="text-muted-foreground">
-                {p.last_message_at ? new Date(p.last_message_at).toLocaleTimeString() : "—"}
+                {(() => { const l = Math.max(p.last_alive_at ? Date.parse(p.last_alive_at) : 0, p.last_message_at ? Date.parse(p.last_message_at) : 0); return l ? new Date(l).toLocaleTimeString() : "—"; })()}
               </span>
             </li>
           ))}
