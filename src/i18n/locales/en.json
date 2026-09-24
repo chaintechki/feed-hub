@@ -171,7 +171,9 @@
       "alerted": "Alerted",
       "semi_auto": "Semi auto",
       "manual": "Manual"
-    }
+    },
+    "comparison": "Comparison",
+    "normAvg": "Min · norm. avg · Max"
   },
   "mk": {
     "1x2": "1X2",
@@ -182,5 +184,84 @@
     "ht_1x2": "1st half 1X2",
     "ht_total": "1st half total",
     "correct_score": "Correct score"
+  },
+  "cfg": {
+    "weightRange": "Weight must be between 0.1 and 10",
+    "bookmakersHint": "Bookmaker lists per sport, category or tournament – lower levels inherit.",
+    "pickLevel": "Pick a sport, category or tournament on the left.",
+    "level": {
+      "sport": "Sport",
+      "category": "Category",
+      "tournament": "Tournament"
+    },
+    "deleteList": "Delete list? The level will inherit again.",
+    "deleteListBtn": "Delete list",
+    "inheritedFrom": "Inherited from",
+    "bookmakers": "bookmakers",
+    "noList": "No list defined.",
+    "createListHere": "Create own list",
+    "listItems": "Bookmakers in list",
+    "weight": "Weight",
+    "emptyList": "No bookmakers yet.",
+    "addBookmakers": "Add bookmakers",
+    "suggested": "Suggested",
+    "tournament": "Tournament"
+  },
+  "fo": {
+    "hint": "Global feed options for pre-match and live.",
+    "readonly": "Only admins can change feed options.",
+    "scope": {
+      "prematch": "Pre-match",
+      "live": "Live"
+    },
+    "preview": "Rounding preview",
+    "feedApplied": "Rounding is applied to customer feeds once the live connection is active.",
+    "f": {
+      "fgs_void": "First goalscorer – void",
+      "ags_void": "Anytime goalscorer – void",
+      "lgs_void": "Last goalscorer – void",
+      "harmonisation": "Harmonisation",
+      "send_probabilities": "Send probabilities",
+      "abandoned": "Abandoned matches",
+      "tennis_retirement": "Tennis retirement",
+      "goalscorer_extra": "Goalscorer incl. extra time",
+      "outrights_others": "Outrights: \"Others\"",
+      "mlb_pitcher": "MLB pitcher rule",
+      "golf_3ball": "Golf 3-ball",
+      "rounding": "Odds rounding",
+      "dynamic_key": "Dynamic key"
+    },
+    "d": {},
+    "o": {
+      "no_void": "No void",
+      "void_non_fielders": "Void non-fielders",
+      "void_non_fielders_bench": "Void non-fielders + bench",
+      "void_non_fielders_bench_subs": "Void non-fielders + bench + subs",
+      "none": "None",
+      "lowest": "Lowest",
+      "average": "Average",
+      "highest": "Highest",
+      "void_all": "Void all",
+      "void_undecided": "Void undecided",
+      "settle_progressing": "Settle as progressed",
+      "dead_heat": "Dead heat",
+      "void": "Void",
+      "betradar": "Betradar",
+      "low_key": "Low key"
+    }
+  },
+  "oc": {
+    "hint": "Publish/suspend outrights, set key and create custom outrights.",
+    "newCustom": "Custom outright",
+    "top": "Favourites",
+    "keyRange": "Key must be between 100 and 200",
+    "compInvalid": "At least 2 competitors with odds > 1",
+    "suspended": "Suspended",
+    "published": "Published",
+    "deleteConfirm": "Delete outright?",
+    "edit": "Edit outright",
+    "scheduled": "Scheduled",
+    "competitors": "Competitors",
+    "addCompetitor": "Add competitor"
   }
 }

@@ -171,7 +171,9 @@
       "alerted": "Alerted",
       "semi_auto": "Semi Auto",
       "manual": "Manual"
-    }
+    },
+    "comparison": "Vergleich",
+    "normAvg": "Min · Ø norm. · Max"
   },
   "mk": {
     "1x2": "1X2",
@@ -182,5 +184,84 @@
     "ht_1x2": "1. HZ 1X2",
     "ht_total": "1. HZ Total",
     "correct_score": "Genaues Ergebnis"
+  },
+  "cfg": {
+    "weightRange": "Gewichtung muss zwischen 0,1 und 10 liegen",
+    "bookmakersHint": "Buchmacherlisten je Sportart, Kategorie oder Turnier – untergeordnete Ebenen erben.",
+    "pickLevel": "Links Sportart, Kategorie oder Turnier wählen.",
+    "level": {
+      "sport": "Sportart",
+      "category": "Kategorie",
+      "tournament": "Turnier"
+    },
+    "deleteList": "Liste löschen? Die Ebene erbt danach wieder.",
+    "deleteListBtn": "Liste löschen",
+    "inheritedFrom": "Geerbt von",
+    "bookmakers": "Buchmacher",
+    "noList": "Keine Liste definiert.",
+    "createListHere": "Eigene Liste anlegen",
+    "listItems": "Buchmacher in Liste",
+    "weight": "Gewichtung",
+    "emptyList": "Noch keine Buchmacher.",
+    "addBookmakers": "Buchmacher hinzufügen",
+    "suggested": "Empfohlen",
+    "tournament": "Turnier"
+  },
+  "fo": {
+    "hint": "Globale Feed-Optionen für Pre-Match und Live.",
+    "readonly": "Nur Admins können Feed-Optionen ändern.",
+    "scope": {
+      "prematch": "Pre-Match",
+      "live": "Live"
+    },
+    "preview": "Rundungsvorschau",
+    "feedApplied": "Die Rundung wird auf die Kunden-Feeds angewendet, sobald die Echtanbindung aktiv ist.",
+    "f": {
+      "fgs_void": "First Goalscorer – Void",
+      "ags_void": "Anytime Goalscorer – Void",
+      "lgs_void": "Last Goalscorer – Void",
+      "harmonisation": "Harmonisierung",
+      "send_probabilities": "Wahrscheinlichkeiten senden",
+      "abandoned": "Abgebrochene Spiele",
+      "tennis_retirement": "Tennis-Aufgabe",
+      "goalscorer_extra": "Torschützen inkl. Verlängerung",
+      "outrights_others": "Outrights: „Andere“",
+      "mlb_pitcher": "MLB: Pitcher-Regel",
+      "golf_3ball": "Golf 3-Ball",
+      "rounding": "Quotenrundung",
+      "dynamic_key": "Dynamischer Key"
+    },
+    "d": {},
+    "o": {
+      "no_void": "Kein Void",
+      "void_non_fielders": "Void Nicht-Spieler",
+      "void_non_fielders_bench": "Void Nicht-Spieler + Bank",
+      "void_non_fielders_bench_subs": "Void Nicht-Spieler + Bank + Wechsel",
+      "none": "Keine",
+      "lowest": "Niedrigste",
+      "average": "Durchschnitt",
+      "highest": "Höchste",
+      "void_all": "Alle voiden",
+      "void_undecided": "Unentschiedene voiden",
+      "settle_progressing": "Nach Stand abrechnen",
+      "dead_heat": "Dead Heat",
+      "void": "Void",
+      "betradar": "Betradar",
+      "low_key": "Low-Key"
+    }
+  },
+  "oc": {
+    "hint": "Outrights veröffentlichen/sperren, Key setzen und eigene Outrights anlegen.",
+    "newCustom": "Custom Outright",
+    "top": "Favoriten",
+    "keyRange": "Key muss zwischen 100 und 200 liegen",
+    "compInvalid": "Mindestens 2 Teilnehmer mit Quote > 1",
+    "suspended": "Gesperrt",
+    "published": "Veröffentlicht",
+    "deleteConfirm": "Outright löschen?",
+    "edit": "Outright bearbeiten",
+    "scheduled": "Termin",
+    "competitors": "Teilnehmer",
+    "addCompetitor": "Teilnehmer hinzufügen"
   }
 }
