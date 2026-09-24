@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Bell, ChevronDown, CircleHelp, LifeBuoy, Newspaper, Settings2, User } from "lucide-react";
+import { Bell, ChevronDown, Settings2, User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
@@ -46,15 +46,6 @@ export function TopBar() {
           />
           {t("nav.operational")}
         </span>
-        <TopItem>
-          <LifeBuoy className="h-3.5 w-3.5" /> {t("nav.supportPortal")}
-        </TopItem>
-        <TopItem>
-          <Newspaper className="h-3.5 w-3.5" /> {t("nav.news")} <ChevronDown className="h-3 w-3" />
-        </TopItem>
-        <TopItem>
-          <CircleHelp className="h-3.5 w-3.5" /> {t("nav.help")} <ChevronDown className="h-3 w-3" />
-        </TopItem>
         <Link to="/configuration">
           <TopItem>
             <Settings2 className="h-3.5 w-3.5" /> {t("nav.configuration")}
