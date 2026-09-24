@@ -147,6 +147,8 @@ export type MatchOpts = {
   limit?: number;
   offset?: number;
   rounding?: RoundingMode;
+  groups?: string[] | undefined;
+  lang?: "en" | "de";
 };
 export async function getMatches(sb: SupabaseClient, c: Client, opts: MatchOpts) {
   const limit = opts.limit ?? 500;
