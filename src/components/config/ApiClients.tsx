@@ -39,7 +39,7 @@ type ClientFields = {
   allowed_domains: string[];
   formats: ("json" | "xml")[];
 };
-type ApiClient = ClientFields & { id: string; keys: ApiKey[]; calls_24h: number };
+type ApiClient = ClientFields & { id: string; keys: ApiKey[]; calls_24h: number; owner_id: string | null; owner_name: string | null };
 
 const EMPTY: ClientFields = {
   name: "",
@@ -71,11 +71,11 @@ async function call<T>(body: Record<string, unknown>): Promise<T> {
 
 const copy = (s: string) => navigator.clipboard.writeText(s).then(() => toast.success("Copied"));
 
-export function ApiClients() {
+export function ApiClients({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean } = {}) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const tree = useSportTree();
-  const [edit, setEdit] = useState<{ id?: string | undefined; f: ClientFields } | null>(null);
+  const [edit, setEdit] = useState<{ id?: string | undefined; f: ClientFields; owner: string | null } | null>(null);
   const [domains, setDomains] = useState<string[]>([]);
   const [domainInput, setDomainInput] = useState("");
   const [newKey, setNewKey] = useState<{ key: string; kind: string; oldExpires?: string } | null>(null);
@@ -83,7 +83,16 @@ export function ApiClients() {
 
   const list = useQuery({
     queryKey: ["api_clients"],
-    queryFn: () => call<{ clients: ApiClient[] }>({ action: "list" }).then((r) => r.clients),
+    queryFn: () => call<{ clients: ApiClient[]; is_admin: boolean }>({ action: "list" }).then((r) => {
+      setIsAdmin(r.is_admin);
+      return r.clients;
+    }),
+  });
+  const [isAdmin, setIsAdmin] = useState(false);
+  const users = useQuery({
+    queryKey: ["api_client_users"],
+    enabled: isAdmin,
+    queryFn: () => call<{ users: { id: string; username: string | null }[] }>({ action: "users" }).then((r) => r.users),
   });
 
   const run = useMutation({
@@ -103,7 +112,7 @@ export function ApiClients() {
     const f = c ? { ...EMPTY, ...c } : EMPTY;
     setDomains(f.allowed_domains);
     setDomainInput("");
-    setEdit({ id: c?.id, f: { ...f } });
+    setEdit({ id: c?.id, f: { ...f }, owner: c?.owner_id ?? null });
   }
   const toggle = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
@@ -177,8 +186,21 @@ export function ApiClients() {
       allowed_domains: domains,
       formats: f.formats,
     };
-    run.mutate({ action: "save", id, client }, { onSuccess: () => setEdit(null) });
+    const prevOwner = list.data?.find((c) => c.id === id)?.owner_id ?? null;
+    const owner = edit.owner;
+    run.mutate(
+      { action: "save", id, client },
+      {
+        onSuccess: (r) => {
+          const cid = id ?? (r as { id?: string }).id;
+          if (isAdmin && cid && owner !== prevOwner) run.mutate({ action: "assign", id: cid, owner_id: owner });
+          setEdit(null);
+        },
+      },
+    );
   }
+
+  if (hideWhenEmpty && !isAdmin && (list.isLoading || !list.data?.length)) return null;
 
   return (
     <section className="space-y-2">
@@ -188,9 +210,11 @@ export function ApiClients() {
           <Button asChild size="sm" variant="outline" className="h-7 text-[11px] uppercase">
             <Link to="/api-docs">{t("api.docs")}</Link>
           </Button>
-          <Button size="sm" className="h-7 text-[11px] uppercase" onClick={() => open()}>
-            <Plus className="mr-1 h-3.5 w-3.5" /> {t("api.create")}
-          </Button>
+          {isAdmin && (
+            <Button size="sm" className="h-7 text-[11px] uppercase" onClick={() => open()}>
+              <Plus className="mr-1 h-3.5 w-3.5" /> {t("api.create")}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -277,7 +301,7 @@ export function ApiClients() {
                 {c.active ? t("users.active") : t("users.banned")}
               </span>
               <span className="text-muted-foreground">
-                {t("api.markup")}: {c.markup_pct}% · {t("api.limit")}: {c.rate_limit_per_min}/min · {t("api.calls24")}:{" "}
+                {t("api.owner")}: {c.owner_name ?? t("api.noOwner")} · {t("api.markup")}: {c.markup_pct}% · {t("api.limit")}: {c.rate_limit_per_min}/min · {t("api.calls24")}:{" "}
                 {c.calls_24h} · {c.formats.join("/").toUpperCase()} ·{" "}
                 {c.sport_ids.length || c.tournament_ids.length
                   ? `${c.sport_ids.length} ${t("api.sports")}, ${c.tournament_ids.length} ${t("api.leagues")}`
@@ -293,14 +317,16 @@ export function ApiClients() {
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => open(c)}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 text-danger"
-                  onClick={() => confirm(t("api.deleteConfirm")) && run.mutate({ action: "delete", id: c.id })}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                {isAdmin && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-danger"
+                    onClick={() => confirm(t("api.deleteConfirm")) && run.mutate({ action: "delete", id: c.id })}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
             </div>
             {c.keys.length > 0 && (
@@ -367,6 +393,21 @@ export function ApiClients() {
                   <Label className="text-[11px] uppercase">Name</Label>
                   <Input value={edit.f.name} onChange={(e) => setEdit({ ...edit, f: { ...edit.f, name: e.target.value } })} className="h-8" />
                 </div>
+                {isAdmin && (
+                  <div className="space-y-1">
+                    <Label className="text-[11px] uppercase">{t("api.owner")}</Label>
+                    <select
+                      value={edit.owner ?? ""}
+                      onChange={(e) => setEdit({ ...edit, owner: e.target.value || null })}
+                      className="h-8 w-full rounded-sm border border-input bg-background px-2 text-[11px]"
+                    >
+                      <option value="">{t("api.noOwner")}</option>
+                      {(users.data ?? []).map((u) => (
+                        <option key={u.id} value={u.id}>{u.username ?? u.id}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label className="text-[11px] uppercase">{t("api.markup")} %</Label>
