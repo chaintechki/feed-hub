@@ -111,8 +111,15 @@ setInterval(() => {
   }
 }, 5000);
 
+const aliveCount = {}; // product -> alive messages received in the last minute
+setInterval(() => {
+  log("alive/min", JSON.stringify(aliveCount));
+  for (const k of Object.keys(aliveCount)) aliveCount[k] = 0;
+}, 60_000);
+
 function onMessage(xml) {
-  const aliveTag = xml.match(/^<alive\b([^>]*)>/)?.[1];
+  // Provider messages start with an XML prolog (<?xml ...?>), so do not anchor to the start.
+  const aliveTag = xml.slice(0, 400).match(/<alive\b([^>]*?)\/?>/)?.[1];
   if (aliveTag) {
     const attrs = Object.fromEntries([...aliveTag.matchAll(/([\w:-]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
     const id = Number(attrs.product);
@@ -122,6 +129,7 @@ function onMessage(xml) {
       log("ignored malformed alive message");
       return;
     }
+    aliveCount[id] = (aliveCount[id] ?? 0) + 1;
     const p = (producers[id] ??= { lastAlive: 0, lastOk: null, down: true });
     const wasDown = p.down;
     p.lastAlive = Date.now();
