@@ -78,6 +78,7 @@ export function toMarkdown(base: string, panelOrigin: string, client?: DocClient
   }
   L.push("## Response – JSON", "", "```json", JSON_SAMPLE, "```", "");
   L.push("## Response – XML", "", "```xml", XML_SAMPLE, "```", "");
+  L.push("## Markets", "", "Every market carries `market` (stable key, e.g. `1x2`, `total`, `handicap` or `m{id}`), `uof_id`, a readable `name`, and a `group`. Each outcome has an `id` plus a readable `name`. Groups: `main`, `goals`, `half`, `periods`, `corners`, `cards`, `players`, `other`. Filter with `?groups=main,goals`. Use `?lang=de` for German names. The full catalog is available at `/markets`.", "");
   L.push("## Caching & ETag", "", "Responses are cached for 15 seconds. Each `200` carries an `ETag`; send it back as `If-None-Match` to receive `304 Not Modified` without body. Polling faster than every 15 s returns the same data.", "");
   L.push("## Rate limiting", "", `Limit: ${client ? `${client.rate_limit_per_min} requests per minute` : "per client, requests per minute"}. Headers on every response:`, "");
   L.push("- `X-RateLimit-Limit` – requests allowed per minute", "- `X-RateLimit-Remaining` – requests left in the current minute", "- `X-RateLimit-Reset` – Unix time when the window resets", "- `Retry-After` – seconds to wait (only on `429`)", "");
