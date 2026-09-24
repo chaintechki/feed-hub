@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLadders, type Ladder } from "@/lib/feed/config";
 import { formatOdds, useOddsFormat } from "@/hooks/useOddsFormat";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 
 /** Parse ladder text: single = "1.01, 1.02 …"; pairs = one "a;b" per line. */
 export function parseLadder(kind: Ladder["kind"], text: string): number[] | number[][] {
@@ -61,7 +62,7 @@ export default function LaddersPage() {
       toast.success(t("users.saved"));
       void qc.invalidateQueries({ queryKey: ["ladders"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
@@ -69,7 +70,7 @@ export default function LaddersPage() {
       if (error) throw error;
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["ladders"] }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   return (

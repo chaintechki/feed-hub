@@ -9,6 +9,7 @@ import { SportTree, type TreeSelection } from "@/components/monitoring/SportTree
 import { supabase } from "@/integrations/supabase/client";
 import { useMatches, useSportTree } from "@/lib/feed/queries";
 import type { LeagueTab, MatchRow, MonitorFilters } from "@/lib/feed/types";
+import { friendlyError } from "@/lib/errors";
 
 type MatchPatch = Partial<{
   suspended: boolean;
@@ -68,7 +69,7 @@ export default function MonitorMatches() {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["matches"] }),
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(friendlyError(error)),
   });
 
   function addTabsFromSelection() {

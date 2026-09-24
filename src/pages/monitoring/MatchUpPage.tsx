@@ -16,6 +16,7 @@ import { heatKey } from "@/lib/feed/heat";
 import { useMatchUp } from "@/lib/feed/queries";
 import type { OddsRow } from "@/lib/feed/types";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 
 const GROUPS = ["all", "main", "goals", "handicap", "halves", "score"] as const;
 const MODES = ["auto", "semi_auto", "manual"] as const;
@@ -60,7 +61,7 @@ export default function MatchUpPage() {
       void qc.invalidateQueries({ queryKey: ["matchup", id] });
       void qc.invalidateQueries({ queryKey: ["matches"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const cmp = (own: OddsRow) => {

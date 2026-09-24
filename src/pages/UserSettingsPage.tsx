@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useOddsFormat, type OddsFormat } from "@/hooks/useOddsFormat";
 import { useAuth } from "@/providers/AuthProvider";
+import { friendlyError } from "@/lib/errors";
 
 type Settings = { odds_format: string; language: string; theme: string };
 
@@ -66,7 +67,7 @@ export default function UserSettingsPage() {
       queryClient.invalidateQueries({ queryKey: ["user_settings"] });
       toast.success("Settings saved");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   return (

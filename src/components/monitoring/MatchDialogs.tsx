@@ -12,6 +12,7 @@ import { useMatchAlerts, useMatchComments } from "@/lib/feed/queries";
 import type { MatchRow } from "@/lib/feed/types";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/AuthProvider";
+import { friendlyError } from "@/lib/errors";
 
 type Factor = { factor: string; value: number };
 
@@ -67,7 +68,7 @@ export function AlertScoreDialog({ match, onClose }: { match: MatchRow | null; o
       void qc.invalidateQueries({ queryKey: ["match-alerts"] });
       void qc.invalidateQueries({ queryKey: ["matches"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
   const critical = (match?.odds ?? []).filter((o) => o.source === "own" && ["1x2", "total", "handicap"].includes(o.market));
 
@@ -153,7 +154,7 @@ export function CommentsDialog({ match, onClose }: { match: MatchRow | null; onC
       void qc.invalidateQueries({ queryKey: ["match-comments"] });
       void qc.invalidateQueries({ queryKey: ["matches"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   return (

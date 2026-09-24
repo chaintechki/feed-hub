@@ -12,6 +12,7 @@ import { useAssignments, useTemplates, useTournamentConfig } from "@/lib/feed/co
 import { useSportTree } from "@/lib/feed/queries";
 import { cn } from "@/lib/utils";
 import { BookmakerListCell } from "@/components/config/BookmakerListCell";
+import { friendlyError } from "@/lib/errors";
 
 type Draft = { activation?: string; alert_factor?: number; template?: string };
 const ACT = ["off", "mon", "ctrl"] as const;
@@ -65,7 +66,7 @@ export default function TournamentsConfigPage() {
       void qc.invalidateQueries({ queryKey: ["tournament_config"] });
       void qc.invalidateQueries({ queryKey: ["template_assignments"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const dirty = Object.keys(draft).length > 0;

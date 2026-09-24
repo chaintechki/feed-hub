@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
+import { friendlyError } from "@/lib/errors";
 
 type Template = {
   id: string;
@@ -55,7 +56,7 @@ export default function MarginsPage() {
       invalidate();
       toast.success("Margin profile created");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const update = useMutation({
@@ -64,7 +65,7 @@ export default function MarginsPage() {
       if (error) throw error;
     },
     onSuccess: invalidate,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const remove = useMutation({
@@ -73,7 +74,7 @@ export default function MarginsPage() {
       if (error) throw error;
     },
     onSuccess: invalidate,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const columns: Column<Template>[] = [

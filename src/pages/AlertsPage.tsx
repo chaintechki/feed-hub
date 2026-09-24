@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAlerts } from "@/lib/feed/queries";
 import { useAuth } from "@/providers/AuthProvider";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 
 type AlertRow = {
   id: string;
@@ -35,7 +36,7 @@ export default function AlertsPage() {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alerts"] }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const rows = useMemo(

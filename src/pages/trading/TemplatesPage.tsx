@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
+import { friendlyError } from "@/lib/errors";
 
 type Preset = { id: string; name: string; filters: Record<string, boolean>; created_at: string };
 
@@ -46,7 +47,7 @@ export default function TemplatesPage() {
       invalidate();
       toast.success("Preset saved");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const remove = useMutation({
@@ -55,7 +56,7 @@ export default function TemplatesPage() {
       if (error) throw error;
     },
     onSuccess: invalidate,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const columns: Column<Preset>[] = [

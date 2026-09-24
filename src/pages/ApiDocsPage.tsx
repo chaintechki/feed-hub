@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { FEED_BASE } from "@/components/config/ApiClients";
+import { FEED_BASE, PUBLIC_ORIGIN } from "@/lib/publicBase";
 import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,7 +35,7 @@ export default function ApiDocsPage() {
     },
   });
   const client = clients.data?.find((c) => c.id === clientId) ?? null;
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const origin = PUBLIC_ORIGIN;
   const spec = useMemo(() => buildOpenApi(FEED_BASE, client), [client]);
   const eps = endpointList(spec);
   const slug = client ? client.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") : "feed";

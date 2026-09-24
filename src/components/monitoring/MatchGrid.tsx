@@ -19,6 +19,7 @@ import {
 import { formatOdds, useOddsFormat } from "@/hooks/useOddsFormat";
 import type { MatchRow, OddsRow } from "@/lib/feed/types";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 
 export function OddsCell({
   outcome,
@@ -271,7 +272,7 @@ export function MatchGrid({
                                   toast.success(`${t("mu.regenerated")}: ${score}`);
                                   void qc.invalidateQueries({ queryKey: ["matches"] });
                                 })
-                                .catch((e: Error) => toast.error(e.message))
+                                .catch((e: Error) => toast.error(friendlyError(e)))
                             }
                           >
                             {t("mu.regenerate")}

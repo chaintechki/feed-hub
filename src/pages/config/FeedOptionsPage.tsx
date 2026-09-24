@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { roundOdds, type RoundingMode } from "@/lib/feed/rounding";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/AuthProvider";
+import { friendlyError } from "@/lib/errors";
 
 type Opt = Record<string, string | boolean>;
 type Field = { key: string; type: "select"; options: string[] } | { key: string; type: "bool" };
@@ -64,7 +65,7 @@ export default function FeedOptionsPage() {
       toast.success(t("users.saved"));
       void qc.invalidateQueries({ queryKey: ["feed_options"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const fields = scope === "prematch" ? PREMATCH : LIVE;

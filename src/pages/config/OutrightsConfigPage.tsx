@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { normalizeTo } from "@/lib/feed/normalize";
 import { useSportTree } from "@/lib/feed/queries";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 
 type Comp = { name: string; odds: number };
 type Row = { id: string; tournament_id: string; name: string; scheduled: string | null; status: string; competitors: Comp[]; suspended: boolean; odds_key: number; custom: boolean };
@@ -54,7 +55,7 @@ export default function OutrightsConfigPage() {
       setKeys({});
       invalidate();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const save = useMutation({
@@ -80,7 +81,7 @@ export default function OutrightsConfigPage() {
       toast.success(t("users.saved"));
       invalidate();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
@@ -88,7 +89,7 @@ export default function OutrightsConfigPage() {
       if (error) throw error;
     },
     onSuccess: invalidate,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const firstTour = tree.data?.[0]?.categories[0]?.tournaments[0]?.id ?? "";
