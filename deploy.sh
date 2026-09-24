@@ -352,9 +352,8 @@ server {
 }
 
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name $SERVER_NAMES;
 
     ssl_certificate     $CERT_DIR/fullchain.pem;
@@ -364,8 +363,6 @@ server {
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 1d;
     ssl_session_tickets off;
-    ssl_stapling on;
-    ssl_stapling_verify on;
 
     include /etc/nginx/snippets/feed-panel-security.conf;
 
@@ -384,36 +381,77 @@ NGINX
 
 reload_nginx() {
   nginx -t || die "nginx configuration test failed – see output above. Nothing was reloaded."
-  systemctl enable --now nginx >/dev/null 2>&1 || true
-  systemctl reload nginx
+  systemctl enable nginx >/dev/null 2>&1 || true
+  if systemctl is-active --quiet nginx; then
+    systemctl reload nginx || systemctl restart nginx
+  else
+    systemctl restart nginx
+  fi
+  sleep 1
+  systemctl is-active --quiet nginx || die "nginx is not running – check 'journalctl -u nginx -n 50'."
 }
 
+cert_valid() { # certificate exists, is not expiring within 7 days and covers all names
+  [ -f "$CERT_DIR/fullchain.pem" ] || return 1
+  openssl x509 -checkend 604800 -noout -in "$CERT_DIR/fullchain.pem" >/dev/null 2>&1 || return 1
+  local n sans; sans="$(openssl x509 -noout -ext subjectAltName -in "$CERT_DIR/fullchain.pem" 2>/dev/null)"
+  for n in $SERVER_NAMES; do grep -q "DNS:$n\b" <<<"$sans" || return 1; done
+}
+
+# Free ports 80/443 from other web servers (e.g. preinstalled apache2)
+for svc in apache2 lighttpd caddy httpd; do
+  if systemctl is-active --quiet "$svc" 2>/dev/null; then
+    echo "    Stopping $svc (blocks port 80/443)"
+    systemctl stop "$svc"; systemctl disable "$svc" >/dev/null 2>&1 || true
+  fi
+done
+
 log "Configuring nginx for $SERVER_NAMES"
-[ -L /etc/nginx/sites-enabled/default ] && rm -f /etc/nginx/sites-enabled/default
+rm -f /etc/nginx/sites-enabled/default
+find /etc/nginx/sites-enabled -maxdepth 1 -name 'feed-panel*' ! -name "$(basename "$SITE_LINK")" -delete 2>/dev/null || true
 ln -sf "$SITE_FILE" "$SITE_LINK"
 write_proxy_snippet
 write_security_snippet
 
 HTTPS_OK=1
-if [ ! -f "$CERT_DIR/fullchain.pem" ]; then
+if ! cert_valid; then
   write_http_only
   reload_nginx
 
-  # ------------------------------------------------------------ DNS check
-  log "Checking DNS for $DOMAIN"
-  PUBLIC_IP="$(curl -4 -fsS --max-time 10 https://api.ipify.org 2>/dev/null || true)"
-  DNS_IPS="$(dig +short A "$DOMAIN" @1.1.1.1 2>/dev/null | tr '\n' ' ')"
-  if [ -n "$PUBLIC_IP" ] && ! grep -qw "$PUBLIC_IP" <<<"$DNS_IPS"; then
-    echo "    Warning: $DOMAIN resolves to '${DNS_IPS:-nothing}', this server is $PUBLIC_IP."
-    echo "    HTTPS skipped – set the DNS A record, wait a few minutes and run deploy.sh again."
-    HTTPS_OK=0
-  else
-    ok "$DOMAIN -> ${DNS_IPS:-?}"
-    # ---------------------------------------------------------- Let's Encrypt
+  # ------------------------------------------------------------ reachability check
+  log "Checking that $DOMAIN reaches this server"
+  PUBLIC_IP4="$(curl -4 -fsS --max-time 8 https://api.ipify.org 2>/dev/null || curl -4 -fsS --max-time 8 https://ifconfig.me 2>/dev/null || true)"
+  DNS_A="$( { dig +short A "$DOMAIN" @1.1.1.1; dig +short A "$DOMAIN" @8.8.8.8; } 2>/dev/null | sort -u | tr '\n' ' ')"
+  DNS_AAAA="$( { dig +short AAAA "$DOMAIN" @1.1.1.1; } 2>/dev/null | sort -u | tr '\n' ' ')"
+  echo "    Server IPv4: ${PUBLIC_IP4:-unknown} | DNS A: ${DNS_A:-none} | DNS AAAA: ${DNS_AAAA:-none}"
+
+  TOKEN="deploy-check-$RANDOM$RANDOM"
+  echo "$TOKEN" > "$ACME_ROOT/.well-known/acme-challenge/$TOKEN"
+  chown www-data:www-data "$ACME_ROOT/.well-known/acme-challenge/$TOKEN"
+  REACH=0
+  for n in $SERVER_NAMES; do
+    if [ "$(curl -fsS --max-time 10 "http://$n/.well-known/acme-challenge/$TOKEN" 2>/dev/null)" = "$TOKEN" ]; then
+      ok "http://$n reaches this server"; REACH=1
+    else
+      echo "    http://$n does NOT reach this server"; REACH=0; break
+    fi
+  done
+  rm -f "$ACME_ROOT/.well-known/acme-challenge/$TOKEN"
+
+  if [ "$REACH" = 1 ] || [ "${FORCE_HTTPS:-0}" = 1 ]; then
     log "Requesting Let's Encrypt certificate for $SERVER_NAMES"
     certbot certonly --webroot -w "$ACME_ROOT" "${CERT_DOMAINS[@]}" \
-      --email "$LE_EMAIL" --agree-tos --no-eff-email --non-interactive --keep-until-expiring \
-      || die "Certificate request failed. Check that $DOMAIN points to this server and port 80 is reachable."
+      --email "$LE_EMAIL" --agree-tos --no-eff-email --non-interactive \
+      --expand --keep-until-expiring --cert-name "$DOMAIN" \
+      || die "Certificate request failed – see /var/log/letsencrypt/letsencrypt.log. Check DNS, port 80 in the provider firewall and CAA records."
+    cert_valid || die "Certificate was requested but is missing or invalid in $CERT_DIR."
+    ok "certificate issued"
+  else
+    echo -e "\033[1;31m    HTTPS NOT set up: $DOMAIN does not reach this server over port 80.\033[0m"
+    echo "    Fix: DNS A record of $DOMAIN -> ${PUBLIC_IP4:-<server IP>}, remove wrong AAAA records,"
+    echo "         open port 80/443 in the hosting provider's firewall, disable CDN proxying."
+    echo "    Then run deploy.sh again (or FORCE_HTTPS=1 sudo ./deploy.sh to try anyway)."
+    HTTPS_OK=0
   fi
 fi
 
@@ -436,6 +474,13 @@ HOOK
   certbot renew --dry-run --quiet || echo "    Warning: renewal dry-run failed – check 'certbot renew --dry-run'."
 fi
 
+# Final full restart so every change is definitely active
+nginx -t && systemctl restart nginx
+systemctl is-active --quiet nginx && ok "nginx restarted and running" || die "nginx failed to restart – check 'journalctl -u nginx -n 50'."
+if [ "$HTTPS_OK" = 1 ]; then
+  HTTPS_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://$DOMAIN/" || echo 000)"
+  [ "$HTTPS_CODE" = 200 ] && ok "https://$DOMAIN answers 200" || echo "    Warning: https://$DOMAIN answered $HTTPS_CODE"
+fi
 
 # ---------------------------------------------------------------- 6. feed worker
 log "Installing feed worker (odds feed connection)"
