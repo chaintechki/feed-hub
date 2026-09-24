@@ -76,7 +76,8 @@ export function ApiClients() {
   const qc = useQueryClient();
   const tree = useSportTree();
   const [edit, setEdit] = useState<{ id?: string | undefined; f: ClientFields } | null>(null);
-  const [domains, setDomains] = useState("");
+  const [domains, setDomains] = useState<string[]>([]);
+  const [domainInput, setDomainInput] = useState("");
   const [newKey, setNewKey] = useState<{ key: string; kind: string; oldExpires?: string } | null>(null);
   const [keyForm, setKeyForm] = useState<KeyForm | null>(null);
 
@@ -100,7 +101,8 @@ export function ApiClients() {
 
   function open(c?: ApiClient) {
     const f = c ? { ...EMPTY, ...c } : EMPTY;
-    setDomains(f.allowed_domains.join(", "));
+    setDomains(f.allowed_domains);
+    setDomainInput("");
     setEdit({ id: c?.id, f: { ...f } });
   }
   const toggle = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
@@ -172,7 +174,7 @@ export function ApiClients() {
       tournament_ids: f.tournament_ids,
       markup_pct: Number(f.markup_pct),
       rate_limit_per_min: Number(f.rate_limit_per_min),
-      allowed_domains: domains.split(/[\s,]+/).filter(Boolean),
+      allowed_domains: domains,
       formats: f.formats,
     };
     run.mutate({ action: "save", id, client }, { onSuccess: () => setEdit(null) });
@@ -369,15 +371,84 @@ export function ApiClients() {
                   <div className="space-y-1">
                     <Label className="text-[11px] uppercase">{t("api.markup")} %</Label>
                     <Input type="number" min={-50} max={50} step={0.5} value={edit.f.markup_pct} onChange={(e) => setEdit({ ...edit, f: { ...edit.f, markup_pct: Number(e.target.value) } })} className="h-8" />
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {[-20, -10, -5, 5, 10, 20].map((v) => (
+                        <Button
+                          key={v}
+                          type="button"
+                          size="sm"
+                          variant={edit.f.markup_pct === v ? "default" : "outline"}
+                          className="h-6 px-2 text-[10px]"
+                          onClick={() => setEdit({ ...edit, f: { ...edit.f, markup_pct: v } })}
+                        >
+                          {v > 0 ? `+${v}` : v}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[11px] uppercase">{t("api.limit")} / min</Label>
                     <Input type="number" min={1} max={10000} value={edit.f.rate_limit_per_min} onChange={(e) => setEdit({ ...edit, f: { ...edit.f, rate_limit_per_min: Number(e.target.value) } })} className="h-8" />
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {[30, 60, 120, 180, 240].map((v) => (
+                        <Button
+                          key={v}
+                          type="button"
+                          size="sm"
+                          variant={edit.f.rate_limit_per_min === v ? "default" : "outline"}
+                          className="h-6 px-2 text-[10px]"
+                          onClick={() => setEdit({ ...edit, f: { ...edit.f, rate_limit_per_min: v } })}
+                        >
+                          {v}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[11px] uppercase">{t("api.domains")}</Label>
-                  <Input placeholder="example.com, shop.example.org" value={domains} onChange={(e) => setDomains(e.target.value)} className="h-8" />
+                  <div className="flex gap-1">
+                    <Input
+                      placeholder="example.com"
+                      value={domainInput}
+                      onChange={(e) => setDomainInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const d = domainInput.trim().toLowerCase();
+                          if (d && !domains.includes(d)) setDomains([...domains, d]);
+                          setDomainInput("");
+                        }
+                      }}
+                      className="h-8"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 shrink-0"
+                      disabled={!domainInput.trim()}
+                      onClick={() => {
+                        const d = domainInput.trim().toLowerCase();
+                        if (d && !domains.includes(d)) setDomains([...domains, d]);
+                        setDomainInput("");
+                      }}
+                    >
+                      <Plus className="mr-1 h-3.5 w-3.5" /> {t("api.addDomain")}
+                    </Button>
+                  </div>
+                  {domains.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {domains.map((d) => (
+                        <span key={d} className="inline-flex items-center gap-1 rounded-sm border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+                          {d}
+                          <button type="button" className="text-muted-foreground hover:text-danger" onClick={() => setDomains(domains.filter((x) => x !== d))}>
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-4">
                   {(["json", "xml"] as const).map((fm) => (
@@ -395,6 +466,35 @@ export function ApiClients() {
               <div className="space-y-1">
                 <Label className="text-[11px] uppercase">{t("api.scope")}</Label>
                 <p className="text-muted-foreground">{t("api.scopeHint")}</p>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-6 px-2 text-[10px]"
+                    onClick={() =>
+                      setEdit({
+                        ...edit,
+                        f: {
+                          ...edit.f,
+                          sport_ids: (tree.data ?? []).map((s) => s.id),
+                          tournament_ids: (tree.data ?? []).flatMap((s) => s.categories.flatMap((c) => c.tournaments.map((tn) => tn.id))),
+                        },
+                      })
+                    }
+                  >
+                    {t("api.selectAll")}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-6 px-2 text-[10px]"
+                    onClick={() => setEdit({ ...edit, f: { ...edit.f, sport_ids: [], tournament_ids: [] } })}
+                  >
+                    {t("api.deselectAll")}
+                  </Button>
+                </div>
                 <div className="panel-scroll max-h-72 overflow-auto rounded-sm border border-border p-2">
                   {(tree.data ?? []).map((s) => (
                     <div key={s.id} className="mb-1">
