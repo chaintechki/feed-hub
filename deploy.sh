@@ -373,33 +373,48 @@ ln -sf "$SITE_FILE" "$SITE_LINK"
 write_proxy_snippet
 write_security_snippet
 
+HTTPS_OK=1
 if [ ! -f "$CERT_DIR/fullchain.pem" ]; then
   write_http_only
   reload_nginx
 
-  # ------------------------------------------------------------ 6. Let's Encrypt
-  log "Requesting Let's Encrypt certificate for $SERVER_NAMES"
-  certbot certonly --webroot -w "$ACME_ROOT" "${CERT_DOMAINS[@]}" \
-    --email "$LE_EMAIL" --agree-tos --no-eff-email --non-interactive --keep-until-expiring \
-    || die "Certificate request failed. Check that $DOMAIN points to this server and port 80 is reachable."
+  # ------------------------------------------------------------ DNS check
+  log "Checking DNS for $DOMAIN"
+  PUBLIC_IP="$(curl -4 -fsS --max-time 10 https://api.ipify.org 2>/dev/null || true)"
+  DNS_IPS="$(dig +short A "$DOMAIN" @1.1.1.1 2>/dev/null | tr '\n' ' ')"
+  if [ -n "$PUBLIC_IP" ] && ! grep -qw "$PUBLIC_IP" <<<"$DNS_IPS"; then
+    echo "    Warning: $DOMAIN resolves to '${DNS_IPS:-nothing}', this server is $PUBLIC_IP."
+    echo "    HTTPS skipped – set the DNS A record, wait a few minutes and run deploy.sh again."
+    HTTPS_OK=0
+  else
+    ok "$DOMAIN -> ${DNS_IPS:-?}"
+    # ---------------------------------------------------------- Let's Encrypt
+    log "Requesting Let's Encrypt certificate for $SERVER_NAMES"
+    certbot certonly --webroot -w "$ACME_ROOT" "${CERT_DOMAINS[@]}" \
+      --email "$LE_EMAIL" --agree-tos --no-eff-email --non-interactive --keep-until-expiring \
+      || die "Certificate request failed. Check that $DOMAIN points to this server and port 80 is reachable."
+  fi
 fi
 
-write_https
-reload_nginx
+if [ "$HTTPS_OK" = 1 ]; then
+  write_https
+  reload_nginx
 
-log "Enabling automatic certificate renewal"
-mkdir -p /etc/letsencrypt/renewal-hooks/deploy
-cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh <<'HOOK'
+  log "Enabling automatic certificate renewal"
+  mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+  cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh <<'HOOK'
 #!/bin/sh
 systemctl reload nginx
 HOOK
-chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
-if systemctl list-unit-files | grep -q '^certbot.timer'; then
-  systemctl enable --now certbot.timer >/dev/null
-else
-  echo "17 3 * * * root certbot renew --quiet" > /etc/cron.d/feed-panel-certbot
+  chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+  if systemctl list-unit-files | grep -q '^certbot.timer'; then
+    systemctl enable --now certbot.timer >/dev/null
+  else
+    echo "17 3 * * * root certbot renew --quiet" > /etc/cron.d/feed-panel-certbot
+  fi
+  certbot renew --dry-run --quiet || echo "    Warning: renewal dry-run failed – check 'certbot renew --dry-run'."
 fi
-certbot renew --dry-run --quiet || echo "    Warning: renewal dry-run failed – check 'certbot renew --dry-run'."
+
 
 # ---------------------------------------------------------------- 6. feed worker
 log "Installing feed worker (odds feed connection)"
