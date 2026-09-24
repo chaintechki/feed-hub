@@ -761,12 +761,14 @@ export type Database = {
       matches: {
         Row: {
           alerted: boolean
+          away_id: string | null
           away_team: string
           booked: boolean
           category_id: string
           comment_count: number
           control_mode: string
           early_odds: boolean
+          home_id: string | null
           home_team: string
           hotlisted: boolean
           id: string
@@ -783,12 +785,14 @@ export type Database = {
         }
         Insert: {
           alerted?: boolean
+          away_id?: string | null
           away_team: string
           booked?: boolean
           category_id: string
           comment_count?: number
           control_mode?: string
           early_odds?: boolean
+          home_id?: string | null
           home_team: string
           hotlisted?: boolean
           id: string
@@ -805,12 +809,14 @@ export type Database = {
         }
         Update: {
           alerted?: boolean
+          away_id?: string | null
           away_team?: string
           booked?: boolean
           category_id?: string
           comment_count?: number
           control_mode?: string
           early_odds?: boolean
+          home_id?: string | null
           home_team?: string
           hotlisted?: boolean
           id?: string
@@ -1208,6 +1214,111 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      uof_markets: {
+        Row: {
+          id: number
+          name: string
+          outcomes: Json
+          specifiers: string | null
+          updated_at: string
+          variant: string
+        }
+        Insert: {
+          id: number
+          name: string
+          outcomes?: Json
+          specifiers?: string | null
+          updated_at?: string
+          variant?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          outcomes?: Json
+          specifiers?: string | null
+          updated_at?: string
+          variant?: string
+        }
+        Relationships: []
+      }
+      uof_messages_log: {
+        Row: {
+          created_at: string
+          error: string
+          event_id: string | null
+          id: number
+          kind: string
+        }
+        Insert: {
+          created_at?: string
+          error: string
+          event_id?: string | null
+          id?: never
+          kind: string
+        }
+        Update: {
+          created_at?: string
+          error?: string
+          event_id?: string | null
+          id?: never
+          kind?: string
+        }
+        Relationships: []
+      }
+      uof_producers: {
+        Row: {
+          down: boolean
+          id: number
+          last_alive_at: string | null
+          last_message_at: string | null
+          last_recovery_at: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          down?: boolean
+          id: number
+          last_alive_at?: string | null
+          last_message_at?: string | null
+          last_recovery_at?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          down?: boolean
+          id?: number
+          last_alive_at?: string | null
+          last_message_at?: string | null
+          last_recovery_at?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      uof_sync_runs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          id: number
+          kind: string
+          ok: boolean
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          id?: never
+          kind: string
+          ok: boolean
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          id?: never
+          kind?: string
+          ok?: boolean
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
