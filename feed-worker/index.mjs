@@ -40,15 +40,37 @@ async function signedPost(fn, obj) {
 // ---------- batching ----------
 let buf = [];
 let flushing = false;
+let maxBytes = 1_500_000; // backend accepts up to 5 MB per request
+const MAX_MSGS = 300;
+function takeBatch() {
+  const batch = [];
+  let size = 0;
+  while (buf.length && batch.length < MAX_MSGS) {
+    const len = buf[0].xml.length + 16;
+    if (batch.length && size + len > maxBytes) break;
+    if (len > 4_500_000) { log("dropping oversized message", len); buf.shift(); continue; }
+    batch.push(buf.shift());
+    size += len;
+  }
+  return batch;
+}
 async function flush() {
   if (flushing || !buf.length) return;
   flushing = true;
-  const batch = buf.splice(0, 500);
   try {
-    await signedPost("uof-ingest", { messages: batch });
-  } catch (e) {
-    log("ingest failed, requeue", e.message);
-    buf.unshift(...batch);
+    for (let round = 0; round < 20 && buf.length; round++) {
+      const batch = takeBatch();
+      if (!batch.length) break;
+      try {
+        await signedPost("uof-ingest", { messages: batch });
+        if (maxBytes < 1_500_000) maxBytes = Math.min(1_500_000, maxBytes * 2);
+      } catch (e) {
+        buf.unshift(...batch);
+        if (/ 413 /.test(e.message) && maxBytes > 50_000) { maxBytes = Math.floor(maxBytes / 2); continue; }
+        log("ingest failed, requeue", e.message);
+        break;
+      }
+    }
     if (buf.length > 20000) buf = buf.slice(-20000);
   } finally {
     flushing = false;
