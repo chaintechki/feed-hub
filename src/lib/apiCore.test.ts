@@ -45,7 +45,7 @@ describe("docs", () => {
   const c = { name: "Acme Bet", sport_ids: ["sr:sport:1"], tournament_ids: [], formats: ["json"], rate_limit_per_min: 120, allowed_domains: ["acme.com"] };
   it("openapi has all endpoints and header auth", () => {
     const s = buildOpenApi("https://x.test/functions/v1", c);
-    expect(Object.keys(s.paths)).toEqual(["/me", "/sports", "/matches", "/matches/{id}/odds", "/outrights", "/results"]);
+    expect(Object.keys(s.paths)).toEqual(["/me", "/sports", "/matches", "/matches/{id}/odds", "/outrights", "/markets", "/results"]);
     expect(s.components.securitySchemes.ApiKey).toMatchObject({ in: "header", name: "X-API-Key" });
     expect(s.info.description).toContain("120 requests/minute");
   });

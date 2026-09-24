@@ -15,6 +15,7 @@ const ClientFields = z.object({
   rate_limit_per_min: z.number().int().min(1).max(10000),
   allowed_domains: z.array(z.string().trim().min(1).max(253)).max(50),
   formats: z.array(z.enum(["json", "xml"])).min(1),
+  market_groups: z.array(z.enum(["main", "goals", "half", "periods", "corners", "cards", "players", "other"])).max(8).default([]),
 });
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("list") }),

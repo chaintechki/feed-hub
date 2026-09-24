@@ -1,3 +1,4 @@
+import { MARKET_GROUPS } from "@/lib/feed/marketCatalog";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, KeyRound, Pencil, Plus, Power, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -38,6 +39,7 @@ type ClientFields = {
   rate_limit_per_min: number;
   allowed_domains: string[];
   formats: ("json" | "xml")[];
+  market_groups: string[];
 };
 type ApiClient = ClientFields & { id: string; keys: ApiKey[]; calls_24h: number; owner_id: string | null; owner_name: string | null; excluded_admins?: string[] };
 
@@ -50,6 +52,7 @@ const EMPTY: ClientFields = {
   rate_limit_per_min: 60,
   allowed_domains: [],
   formats: ["json", "xml"],
+  market_groups: [],
 };
 
 export { FEED_BASE } from "@/lib/publicBase";
@@ -187,6 +190,7 @@ export function ApiClients({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean 
       rate_limit_per_min: Number(f.rate_limit_per_min),
       allowed_domains: domains,
       formats: f.formats,
+      market_groups: f.market_groups ?? [],
     };
     const prevOwner = list.data?.find((c) => c.id === id)?.owner_id ?? null;
     const owner = edit.owner;
@@ -513,6 +517,17 @@ export function ApiClients({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean 
                       ))}
                     </div>
                   )}
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[11px] text-muted-foreground">{t("apiClients.marketGroups")} · {t("apiClients.marketGroupsHint")}</div>
+                  <div className="flex flex-wrap gap-3">
+                    {MARKET_GROUPS.map((g) => (
+                      <label key={g} className="flex items-center gap-1.5">
+                        <Checkbox checked={(edit.f.market_groups ?? []).includes(g)} onCheckedChange={() => setEdit({ ...edit, f: { ...edit.f, market_groups: toggle(edit.f.market_groups ?? [], g) } })} />
+                        {t(`mu.group.${g}`)}
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex items-center gap-4">
                   {(["json", "xml"] as const).map((fm) => (

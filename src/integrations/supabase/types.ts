@@ -129,6 +129,7 @@ export type Database = {
           created_at: string
           formats: string[]
           id: string
+          market_groups: string[]
           markup_pct: number
           name: string
           owner_id: string | null
@@ -142,6 +143,7 @@ export type Database = {
           created_at?: string
           formats?: string[]
           id?: string
+          market_groups?: string[]
           markup_pct?: number
           name: string
           owner_id?: string | null
@@ -155,6 +157,7 @@ export type Database = {
           created_at?: string
           formats?: string[]
           id?: string
+          market_groups?: string[]
           markup_pct?: number
           name?: string
           owner_id?: string | null
@@ -1218,24 +1221,33 @@ export type Database = {
       uof_markets: {
         Row: {
           id: number
+          market_group: string
           name: string
+          name_de: string | null
           outcomes: Json
+          outcomes_de: Json | null
           specifiers: string | null
           updated_at: string
           variant: string
         }
         Insert: {
           id: number
+          market_group?: string
           name: string
+          name_de?: string | null
           outcomes?: Json
+          outcomes_de?: Json | null
           specifiers?: string | null
           updated_at?: string
           variant?: string
         }
         Update: {
           id?: number
+          market_group?: string
           name?: string
+          name_de?: string | null
           outcomes?: Json
+          outcomes_de?: Json | null
           specifiers?: string | null
           updated_at?: string
           variant?: string
@@ -1409,6 +1421,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      market_group_of: { Args: { _name: string }; Returns: string }
       owns_api_client: {
         Args: { _client: string; _user: string }
         Returns: boolean

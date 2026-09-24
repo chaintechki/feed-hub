@@ -11,8 +11,8 @@ export const JSON_SAMPLE = `{
     "tournament_id": "sr:tournament:17", "home_team": "Arsenal", "away_team": "Liverpool",
     "scheduled": "2026-09-24T19:00:00Z", "status": "not_started", "match_minute": null,
     "updated_at": "2026-09-24T01:28:40Z",
-    "markets": [{ "market": "1x2", "specifier": null, "active": true, "updated_at": "2026-09-24T01:28:40Z",
-      "outcomes": [{ "id": "1", "odds": 2.35 }, { "id": "X", "odds": 3.4 }, { "id": "2", "odds": 2.95 }] }]
+    "markets": [{ "market": "1x2", "uof_id": 1, "name": "1x2", "group": "main", "specifier": null, "active": true, "updated_at": "2026-09-24T01:28:40Z",
+      "outcomes": [{ "id": "1", "name": "Arsenal", "odds": 2.35 }, { "id": "X", "name": "draw", "odds": 3.4 }, { "id": "2", "name": "Liverpool", "odds": 2.95 }] }]
   }]
 }`;
 
@@ -25,10 +25,10 @@ export const XML_SAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
       <competitor qualifier="away" name="Liverpool"/>
     </competitors>
     <odds>
-      <market id="1x2" status="1">
-        <outcome id="1" odds="2.35" active="1"/>
-        <outcome id="X" odds="3.4" active="1"/>
-        <outcome id="2" odds="2.95" active="1"/>
+      <market id="1x2" uof_id="1" name="1x2" group="main" status="1">
+        <outcome id="1" name="Arsenal" odds="2.35" active="1"/>
+        <outcome id="X" name="draw" odds="3.4" active="1"/>
+        <outcome id="2" name="Liverpool" odds="2.95" active="1"/>
       </market>
     </odds>
   </sport_event>
@@ -78,6 +78,7 @@ export function toMarkdown(base: string, panelOrigin: string, client?: DocClient
   }
   L.push("## Response – JSON", "", "```json", JSON_SAMPLE, "```", "");
   L.push("## Response – XML", "", "```xml", XML_SAMPLE, "```", "");
+  L.push("## Markets", "", "Every market carries `market` (stable key, e.g. `1x2`, `total`, `handicap` or `m{id}`), `uof_id`, a readable `name`, and a `group`. Each outcome has an `id` plus a readable `name`. Groups: `main`, `goals`, `half`, `periods`, `corners`, `cards`, `players`, `other`. Filter with `?groups=main,goals`. Use `?lang=de` for German names. The full catalog is available at `/markets`.", "");
   L.push("## Caching & ETag", "", "Responses are cached for 15 seconds. Each `200` carries an `ETag`; send it back as `If-None-Match` to receive `304 Not Modified` without body. Polling faster than every 15 s returns the same data.", "");
   L.push("## Rate limiting", "", `Limit: ${client ? `${client.rate_limit_per_min} requests per minute` : "per client, requests per minute"}. Headers on every response:`, "");
   L.push("- `X-RateLimit-Limit` – requests allowed per minute", "- `X-RateLimit-Remaining` – requests left in the current minute", "- `X-RateLimit-Reset` – Unix time when the window resets", "- `Retry-After` – seconds to wait (only on `429`)", "");

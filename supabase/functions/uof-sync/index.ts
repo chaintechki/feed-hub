@@ -1,6 +1,7 @@
 // Pulls sport tree, schedule (today + 2 days, live) and market descriptions from the feed API.
 // Callable by admins (panel button) or by the feed worker (signed request).
 // deno-lint-ignore-file no-explicit-any
+import { groupOf } from "../_shared/markets.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
@@ -60,17 +61,29 @@ Deno.serve(async (req) => {
     result.next = next;
 
     const full = opts.markets === true;
-    const { count } = await sb.from("uof_markets").select("id", { count: "exact", head: true });
-    if (full || !count) {
-      const md = await uofGet("/descriptions/en/markets.xml");
-      const rows = (md?.market_descriptions?.market ?? []).map((m: any) => ({
-        id: Number(m.id), variant: m.variant ?? "", name: m.name,
-        outcomes: (m.outcomes?.outcome ?? []).map((o: any) => ({ id: String(o.id), name: o.name })),
-        specifiers: (m.specifiers?.specifier ?? []).map((s: any) => s.name).join("|") || null,
-      }));
+    const { data: newest } = await sb.from("uof_markets").select("updated_at,name_de").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    const stale = !newest || !newest.name_de || Date.now() - Date.parse(newest.updated_at) > 86_400_000;
+    if (full || stale) {
+      const load = async (lang: string) => {
+        const md = await uofGet(`/descriptions/${lang}/markets.xml`);
+        return (md?.market_descriptions?.market ?? []) as any[];
+      };
+      const [en, de] = await Promise.all([load("en"), load("de").catch(() => [] as any[])]);
+      const outs = (m: any) => (m?.outcomes?.outcome ?? []).map((o: any) => ({ id: String(o.id), name: o.name }));
+      const deMap = new Map(de.map((m) => [`${m.id}|${m.variant ?? ""}`, m]));
+      const now = new Date().toISOString();
+      const rows = en.map((m: any) => {
+        const d = deMap.get(`${m.id}|${m.variant ?? ""}`);
+        return {
+          id: Number(m.id), variant: m.variant ?? "", name: m.name,
+          name_de: d?.name ?? null, outcomes: outs(m), outcomes_de: d ? outs(d) : null,
+          specifiers: (m.specifiers?.specifier ?? []).map((s: any) => s.name).join("|") || null,
+          market_group: groupOf(String(m.name ?? "")), updated_at: now,
+        };
+      });
       const uniq = [...new Map(rows.map((r: any) => [`${r.id}|${r.variant}`, r])).values()];
       for (let i = 0; i < uniq.length; i += 500) { const { error } = await sb.from("uof_markets").upsert(uniq.slice(i, i + 500), { onConflict: "id,variant" }); if (error) throw new Error(`markets: ${error.message}`); }
-      result.markets = rows.length;
+      result.markets = uniq.length;
     }
     result.ms = Date.now() - started;
     await sb.from("uof_sync_runs").insert({ kind: "sync", ok: true, details: result });

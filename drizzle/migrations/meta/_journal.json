@@ -127,6 +127,13 @@
       "when": 1790255448298,
       "tag": "0017_uof_integration",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790276038297,
+      "tag": "0018_market_catalog",
+      "breakpoints": true
     }
   ]
 }
