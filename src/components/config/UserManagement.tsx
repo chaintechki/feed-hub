@@ -36,7 +36,7 @@ type ManagedUser = {
   last_sign_in_at: string | null;
 };
 
-const ROLES: AppRole[] = ["admin", "trader", "viewer"];
+const ALL_ROLES: AppRole[] = ["super_admin", "admin", "trader", "viewer"];
 
 async function call<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("admin-users", { body });
@@ -56,7 +56,10 @@ async function call<T>(body: Record<string, unknown>): Promise<T> {
 
 export function UserManagement() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
+  const isSuper = roles.includes("super_admin");
+  const ROLES = isSuper ? ALL_ROLES : ALL_ROLES.filter((r) => r !== "super_admin");
+  const roleLabel = (r: AppRole) => t(`users.roles.${r}`);
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [resetFor, setResetFor] = useState<ManagedUser | null>(null);
@@ -106,16 +109,16 @@ export function UserManagement() {
       render: (r) => (
         <Select
           value={r.role}
-          disabled={r.id === user?.id}
+          disabled={r.id === user?.id || (!isSuper && r.role === "super_admin")}
           onValueChange={(v) => run.mutate({ action: "set_role", user_id: r.id, role: v })}
         >
-          <SelectTrigger className="h-7 w-28 text-[11px]">
+          <SelectTrigger className="h-7 w-32 text-[11px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {ROLES.map((ro) => (
+            {(r.role === "super_admin" ? ALL_ROLES : ROLES).map((ro) => (
               <SelectItem key={ro} value={ro} className="text-[11px]">
-                {ro}
+                {roleLabel(ro)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -142,6 +145,7 @@ export function UserManagement() {
       header: t("common.actions"),
       render: (r) => {
         const self = r.id === user?.id;
+        if (!isSuper && r.role === "super_admin") return <span className="text-[11px] text-muted-foreground">—</span>;
         return (
           <div className="flex gap-1">
             <Button size="icon" variant="ghost" className="h-7 w-7" title={t("users.resetPassword")} onClick={() => { setNewPw(""); setNewPw2(""); setResetFor(r); }}>
@@ -216,7 +220,7 @@ export function UserManagement() {
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as AppRole })}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {ROLES.map((ro) => <SelectItem key={ro} value={ro}>{ro}</SelectItem>)}
+                  {ROLES.map((ro) => <SelectItem key={ro} value={ro}>{roleLabel(ro)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

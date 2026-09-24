@@ -99,6 +99,27 @@
       "when": 1790222463256,
       "tag": "0013_api_client_owner",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790222886360,
+      "tag": "0014_super_admin_enum",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790222907763,
+      "tag": "0015_super_admin_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790222964121,
+      "tag": "0016_api_keys_hide_hash",
+      "breakpoints": true
     }
   ]
 }

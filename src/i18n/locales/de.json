@@ -74,6 +74,7 @@
     "search": "Suche"
   },
   "users": {
+    "roles": { "super_admin": "Super-Admin", "admin": "Admin", "trader": "Trader", "viewer": "Viewer" },
     "title": "Benutzer",
     "create": "Benutzer anlegen",
     "role": "Rolle",
@@ -116,6 +117,8 @@
     "selectAll": "Alle auswählen",
     "deselectAll": "Alle abwählen",
     "addDomain": "Hinzufügen",
+    "hideForAdmins": "Für Admins ausblenden",
+    "hiddenFor": "für {{count}} Admins ausgeblendet",
     "owner": "Zuständiger Benutzer",
     "noOwner": "Keiner",
     "newKey": "Neuer Schlüssel erstellt",

@@ -39,7 +39,7 @@ type ClientFields = {
   allowed_domains: string[];
   formats: ("json" | "xml")[];
 };
-type ApiClient = ClientFields & { id: string; keys: ApiKey[]; calls_24h: number; owner_id: string | null; owner_name: string | null };
+type ApiClient = ClientFields & { id: string; keys: ApiKey[]; calls_24h: number; owner_id: string | null; owner_name: string | null; excluded_admins?: string[] };
 
 const EMPTY: ClientFields = {
   name: "",
@@ -75,7 +75,7 @@ export function ApiClients({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean 
   const { t } = useTranslation();
   const qc = useQueryClient();
   const tree = useSportTree();
-  const [edit, setEdit] = useState<{ id?: string | undefined; f: ClientFields; owner: string | null } | null>(null);
+  const [edit, setEdit] = useState<{ id?: string | undefined; f: ClientFields; owner: string | null; excluded: string[] } | null>(null);
   const [domains, setDomains] = useState<string[]>([]);
   const [domainInput, setDomainInput] = useState("");
   const [newKey, setNewKey] = useState<{ key: string; kind: string; oldExpires?: string } | null>(null);
@@ -83,16 +83,18 @@ export function ApiClients({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean 
 
   const list = useQuery({
     queryKey: ["api_clients"],
-    queryFn: () => call<{ clients: ApiClient[]; is_admin: boolean }>({ action: "list" }).then((r) => {
+    queryFn: () => call<{ clients: ApiClient[]; is_admin: boolean; is_super: boolean }>({ action: "list" }).then((r) => {
       setIsAdmin(r.is_admin);
+      setIsSuper(r.is_super);
       return r.clients;
     }),
   });
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuper, setIsSuper] = useState(false);
   const users = useQuery({
     queryKey: ["api_client_users"],
     enabled: isAdmin,
-    queryFn: () => call<{ users: { id: string; username: string | null }[] }>({ action: "users" }).then((r) => r.users),
+    queryFn: () => call<{ users: { id: string; username: string | null; role: string }[] }>({ action: "users" }).then((r) => r.users),
   });
 
   const run = useMutation({
@@ -112,7 +114,7 @@ export function ApiClients({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean 
     const f = c ? { ...EMPTY, ...c } : EMPTY;
     setDomains(f.allowed_domains);
     setDomainInput("");
-    setEdit({ id: c?.id, f: { ...f }, owner: c?.owner_id ?? null });
+    setEdit({ id: c?.id, f: { ...f }, owner: c?.owner_id ?? null, excluded: c?.excluded_admins ?? [] });
   }
   const toggle = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
@@ -188,12 +190,16 @@ export function ApiClients({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean 
     };
     const prevOwner = list.data?.find((c) => c.id === id)?.owner_id ?? null;
     const owner = edit.owner;
+    const excluded = edit.excluded;
+    const prevExcluded = list.data?.find((c) => c.id === id)?.excluded_admins ?? [];
     run.mutate(
       { action: "save", id, client },
       {
         onSuccess: (r) => {
           const cid = id ?? (r as { id?: string }).id;
           if (isAdmin && cid && owner !== prevOwner) run.mutate({ action: "assign", id: cid, owner_id: owner });
+          if (isSuper && cid && [...excluded].sort().join() !== [...prevExcluded].sort().join())
+            run.mutate({ action: "set_exclusions", id: cid, admin_ids: excluded });
           setEdit(null);
         },
       },
@@ -301,7 +307,7 @@ export function ApiClients({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean 
                 {c.active ? t("users.active") : t("users.banned")}
               </span>
               <span className="text-muted-foreground">
-                {t("api.owner")}: {c.owner_name ?? t("api.noOwner")} · {t("api.markup")}: {c.markup_pct}% · {t("api.limit")}: {c.rate_limit_per_min}/min · {t("api.calls24")}:{" "}
+                {t("api.owner")}: {c.owner_name ?? t("api.noOwner")} · {isSuper && c.excluded_admins?.length ? `${t("api.hiddenFor", { count: c.excluded_admins.length })} · ` : ""}{t("api.markup")}: {c.markup_pct}% · {t("api.limit")}: {c.rate_limit_per_min}/min · {t("api.calls24")}:{" "}
                 {c.calls_24h} · {c.formats.join("/").toUpperCase()} ·{" "}
                 {c.sport_ids.length || c.tournament_ids.length
                   ? `${c.sport_ids.length} ${t("api.sports")}, ${c.tournament_ids.length} ${t("api.leagues")}`
@@ -406,6 +412,23 @@ export function ApiClients({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean 
                         <option key={u.id} value={u.id}>{u.username ?? u.id}</option>
                       ))}
                     </select>
+                  </div>
+                )}
+                {isSuper && (
+                  <div className="space-y-1">
+                    <Label className="text-[11px] uppercase">{t("api.hideForAdmins")}</Label>
+                    <div className="space-y-1 rounded-sm border border-border p-2">
+                      {(users.data ?? []).filter((u) => u.role === "admin").length === 0 && <p className="text-muted-foreground">—</p>}
+                      {(users.data ?? []).filter((u) => u.role === "admin").map((u) => (
+                        <label key={u.id} className="flex items-center gap-2">
+                          <Checkbox
+                            checked={edit.excluded.includes(u.id)}
+                            onCheckedChange={() => setEdit({ ...edit, excluded: toggle(edit.excluded, u.id) })}
+                          />
+                          {u.username ?? u.id}
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-2">

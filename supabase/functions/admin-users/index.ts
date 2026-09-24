@@ -7,7 +7,7 @@ import { USERNAME_DOMAIN, USERNAME_RE, passwordValid, pepperPassword } from "../
 
 const DOMAIN = USERNAME_DOMAIN;
 const Password = z.string().max(128).refine(passwordValid, "weak_password");
-const Role = z.enum(["admin", "trader", "viewer"]);
+const Role = z.enum(["super_admin", "admin", "trader", "viewer"]);
 const Id = z.string().uuid();
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("list") }),
@@ -61,8 +61,18 @@ Deno.serve(async (req) => {
 
     if ("user_id" in b && b.user_id === me && ["ban", "delete"].includes(b.action))
       return json({ error: "You cannot do this to your own account" }, 400);
-    if (b.action === "set_role" && b.user_id === me && b.role !== "admin")
+    const { data: isSuper } = await admin.rpc("has_role", { _user_id: me, _role: "super_admin" });
+    const targetIsSuper = async (id: string) =>
+      !!(await admin.rpc("has_role", { _user_id: id, _role: "super_admin" })).data;
+    if (!isSuper) {
+      if ((b.action === "create" || b.action === "set_role") && b.role === "super_admin")
+        return json({ error: "forbidden" }, 403);
+      if ("user_id" in b && (await targetIsSuper(b.user_id))) return json({ error: "forbidden" }, 403);
+    }
+    if (b.action === "set_role" && b.user_id === me && !(isSuper ? b.role === "super_admin" : b.role === "admin"))
       return json({ error: "You cannot remove your own admin role" }, 400);
+    const rolesFor = (id: string, role: string) =>
+      role === "super_admin" ? [{ user_id: id, role: "super_admin" }, { user_id: id, role: "admin" }] : [{ user_id: id, role }];
 
     const audit = (action: string, id: string, details: Record<string, unknown> = {}) =>
       admin.from("audit_log").insert({ user_id: me, action, entity: "user", entity_id: id, details });
@@ -85,7 +95,8 @@ Deno.serve(async (req) => {
         const users = data.users.map((u) => ({
           id: u.id,
           username: (u.user_metadata?.username as string) ?? u.email?.split("@")[0] ?? "",
-          role: roles?.find((r) => r.user_id === u.id)?.role ?? "viewer",
+          role: roles?.find((r) => r.user_id === u.id && r.role === "super_admin")?.role
+            ?? roles?.find((r) => r.user_id === u.id)?.role ?? "viewer",
           banned: !!u.banned_until && new Date(u.banned_until) > new Date(),
           created_at: u.created_at,
           last_sign_in_at: u.last_sign_in_at ?? null,
@@ -102,13 +113,13 @@ Deno.serve(async (req) => {
         if (error) return json({ error: error.message }, 400);
         const id = data.user.id;
         await admin.from("user_roles").delete().eq("user_id", id);
-        await admin.from("user_roles").insert({ user_id: id, role: b.role });
+        await admin.from("user_roles").insert(rolesFor(id, b.role));
         await audit("user.create", id, { username: b.username, role: b.role });
         return json({ id });
       }
       case "set_role": {
         await admin.from("user_roles").delete().eq("user_id", b.user_id);
-        const { error } = await admin.from("user_roles").insert({ user_id: b.user_id, role: b.role });
+        const { error } = await admin.from("user_roles").insert(rolesFor(b.user_id, b.role));
         if (error) throw error;
         await audit("user.set_role", b.user_id, { role: b.role });
         return json({ ok: true });
@@ -134,6 +145,7 @@ Deno.serve(async (req) => {
         return json({ ok: true });
       }
       case "delete": {
+        await admin.from("api_client_exclusions").delete().eq("admin_id", b.user_id);
         await admin.from("api_clients").update({ owner_id: null }).eq("owner_id", b.user_id);
         await admin.from("user_roles").delete().eq("user_id", b.user_id);
         await admin.from("user_settings").delete().eq("user_id", b.user_id);

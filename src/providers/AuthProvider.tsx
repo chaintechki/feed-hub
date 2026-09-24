@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 import { supabase } from "@/integrations/supabase/client";
 
-export type AppRole = "admin" | "trader" | "viewer";
+export type AppRole = "super_admin" | "admin" | "trader" | "viewer";
 
 type AuthState = {
   session: Session | null;
