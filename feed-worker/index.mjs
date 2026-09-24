@@ -127,7 +127,7 @@ async function syncCycle() {
     while (startAt !== null) {
       const r = await signedPost("uof-sync", { start: startAt, markets: first && new Date().getUTCHours() === 3 });
       log("sync", JSON.stringify(r.schedule), "next", r.next);
-      startAt = r.next ?? null;
+      startAt = r.next === startAt ? null : (r.next ?? null);
       first = false;
     }
   } catch (e) {
