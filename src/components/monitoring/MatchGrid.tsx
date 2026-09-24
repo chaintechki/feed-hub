@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 import { AlertScoreDialog, CommentsDialog, H2HDialog, regenerateAlerts } from "@/components/monitoring/MatchDialogs";
 import { useComparisons } from "@/lib/feed/bookmakers";
@@ -94,6 +95,45 @@ function Margin({ value }: { value: number | null }) {
     <div className="flex h-[22px] items-center justify-center text-[10px] text-muted-foreground">
       {value == null ? "" : value.toFixed(0)}
     </div>
+  );
+}
+
+function BookChip({ match }: { match: MatchRow }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const booked = match.booked || match.liveodds === "booked";
+  const bookable = !booked && match.liveodds === "bookable";
+  const book = async () => {
+    if (!bookable || busy) return;
+    setBusy(true);
+    const { data, error } = await supabase.functions.invoke("uof-book", { body: { matchId: match.id } });
+    setBusy(false);
+    if (error || !data?.ok) {
+      toast.error(t("grid.bookFailed"));
+      return;
+    }
+    toast.success(t("grid.booked"));
+    void qc.invalidateQueries({ queryKey: ["matches"] });
+  };
+  return (
+    <button
+      type="button"
+      onClick={() => void book()}
+      disabled={!bookable || busy}
+      title={booked ? t("grid.bookedHint") : bookable ? t("grid.bookHint") : t("grid.notBookable")}
+      className={cn(
+        "flex h-[18px] min-w-[22px] items-center justify-center rounded-sm border px-1 text-[9px] font-bold",
+        booked
+          ? "border-success bg-success text-success-foreground"
+          : bookable
+            ? "border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+            : "cursor-not-allowed border-border bg-muted text-muted-foreground opacity-50",
+        busy && "animate-pulse",
+      )}
+    >
+      BR
+    </button>
   );
 }
 
@@ -257,7 +297,7 @@ export function MatchGrid({
                       >
                         {t("grid.suspend")}
                       </button>
-                      <ActionChip label="BR" active={m.booked} />
+                      <BookChip match={m} />
                       <ActionChip label="SA" active={m.controlMode === "semi_auto"} />
                       <ActionChip label="M" active={m.controlMode === "manual"} />
                       <DropdownMenu>

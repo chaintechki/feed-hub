@@ -42,7 +42,12 @@
     "market1x2": "1X2",
     "total": "Total",
     "handicap": "Handicap",
-    "noMatches": "No matches for the current selection."
+    "noMatches": "No matches for the current selection.",
+    "booked": "Match booked",
+    "bookFailed": "Booking failed",
+    "bookHint": "Book live odds",
+    "bookedHint": "Booked",
+    "notBookable": "Not bookable"
   },
   "auth": {
     "title": "Feed Panel sign in",
@@ -396,6 +401,7 @@
     "noData": "No feed messages yet – is the feed worker running?",
     "syncNow": "Sync now",
     "synced": "Synchronised: {{count}} matches",
-    "syncFailed": "Synchronisation failed"
+    "syncFailed": "Synchronisation failed",
+    "checking": "Checking…"
   }
 }

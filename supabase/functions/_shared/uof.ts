@@ -76,6 +76,7 @@ export async function upsertEvents(sb: SupabaseClient, events: Ev[]) {
       id: e.id, tournament_id: t.id, sport_id: s.id, category_id: c.id,
       home_team: home.name, away_team: away.name, home_id: home.id, away_id: away.id,
       scheduled: e.scheduled ?? e.start_time, status: e.status ?? "not_started", liveodds: e.liveodds ?? "not_available",
+      booked: (e.liveodds ?? "") === "booked",
       updated_at: new Date().toISOString(),
     });
   }

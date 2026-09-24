@@ -130,6 +130,9 @@ function onMessage(xml) {
     if (wasDown && subscribed === "1") {
       recover(id);
     }
+    buf.push({ xml });
+    void flush(); // forward alive signals immediately so the panel status is current
+    return;
   }
   buf.push({ xml });
 }
