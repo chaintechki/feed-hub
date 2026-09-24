@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 
+import { AppFooter } from "@/components/layout/AppFooter";
 import { NavBar } from "@/components/layout/NavBar";
 import { TopBar } from "@/components/layout/TopBar";
 
@@ -11,6 +12,7 @@ export function AppLayout() {
       <main className="flex min-h-0 flex-1 flex-col">
         <Outlet />
       </main>
+      <AppFooter />
     </div>
   );
 }

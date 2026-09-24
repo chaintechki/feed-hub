@@ -335,5 +335,13 @@
     "scheduled": "Termin",
     "competitors": "Teilnehmer",
     "addCompetitor": "Teilnehmer hinzufügen"
+  },
+  "version": {
+    "title": "Neue Version verfügbar",
+    "body": "Eine neuere Version des Feed Panels ist verfügbar. Bitte laden Sie die Seite neu, um sie zu verwenden.",
+    "installed": "Ihre Version",
+    "available": "Neue Version",
+    "reload": "Jetzt neu laden",
+    "later": "Später"
   }
 }
