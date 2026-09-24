@@ -31,6 +31,10 @@ function versionFile(): Plugin {
 
 export default defineConfig({
   define: {
+    __PUBLIC_ORIGIN__: JSON.stringify(process.env["VITE_PUBLIC_ORIGIN"] ?? ""),
+    __SW_HOSTS__: JSON.stringify(process.env["VITE_SW_HOSTS"] ?? ""),
+    __BACKEND_URL__: JSON.stringify(process.env["VITE_SUPABASE_URL"] ?? ""),
+    __BACKEND_KEY__: JSON.stringify(process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ?? ""),
     __APP_VERSION__: JSON.stringify(VERSION_INFO.version),
     __BUILD_ID__: JSON.stringify(VERSION_INFO.buildId),
     __BUILD_TIME__: JSON.stringify(VERSION_INFO.buildTime),
