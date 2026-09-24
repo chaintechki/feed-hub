@@ -69,7 +69,9 @@ export const etagMatches = (header: string | null, etag: string) =>
   !!header && header.split(",").some((h) => h.trim().replace(/^W\//, "") === etag.replace(/^W\//, ""));
 
 export async function etagOf(body: string) {
-  const buf = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(body));
+  // Content hash without volatile generation timestamps → stable across instances/rebuilds.
+  const stable = body.replace(/"generated_at":"[^"]*"/g, "").replace(/generated_at="\d+"/g, "");
+  const buf = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(stable));
   return `"${Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("")}"`;
 }
 
