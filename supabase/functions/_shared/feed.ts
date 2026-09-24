@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { catalog, knownOutcomeTemplate, resolveTemplate, specString, uofIdOf } from "./markets.ts";
+import { catalog, knownOutcomeTemplate, marketKeyOf, resolveTemplate, specString, uofIdOf } from "./markets.ts";
 import { ERROR_CODES, ipAllowed, isExpired, priceOdds, type ErrorCode, type RoundingMode } from "./api-core.ts";
 export { ERROR_CODES, buildOpenApi, clientIp, type ErrorCode } from "./api-core.ts";
 
@@ -220,7 +220,7 @@ export async function getMarkets(sb: SupabaseClient, c: Client, lang: "en" | "de
     .sort((a, b) => a.id - b.id)
     .map((m) => ({
       uof_id: m.id,
-      market: `m${m.id}`,
+      market: marketKeyOf(m.id),
       name: (lang === "de" && m.name_de) || m.name,
       group: m.group,
       specifiers: m.specifiers ? m.specifiers.split("|") : [],

@@ -56,3 +56,6 @@ export function knownOutcomeTemplate(market: string, label: string, de: boolean)
   const t = KNOWN_OUT[label];
   return t ? t[de ? 1 : 0] : undefined;
 }
+
+/** Market key used in feed responses for a UOF id. */
+export const marketKeyOf = (id: number) => Object.entries(KNOWN).find(([, v]) => v === id)?.[0] ?? `m${id}`;
