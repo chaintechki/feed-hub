@@ -50,7 +50,14 @@
     "password": "Passwort",
     "signIn": "Anmelden",
     "username": "Benutzername",
-    "invalid": "Benutzername oder Passwort falsch."
+    "invalid": "Benutzername oder Passwort falsch.",
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort verbergen",
+    "captcha": "Sicherheitsfrage",
+    "newCaptcha": "Neue Aufgabe",
+    "captchaWrong": "Ergebnis der Rechenaufgabe ist falsch. Neue Aufgabe geladen.",
+    "captchaLoadFailed": "Sicherheitsfrage konnte nicht geladen werden.",
+    "locked": "Zu viele Fehlversuche. Bitte in {{min}} Minuten erneut versuchen."
   },
   "common": {
     "loading": "Lädt…",
@@ -80,7 +87,13 @@
     "unban": "Entsperren",
     "delete": "Benutzer löschen",
     "deleteConfirm": "Das Konto und seine Einstellungen werden dauerhaft entfernt.",
-    "saved": "Gespeichert."
+    "saved": "Gespeichert.",
+    "name": {
+      "checking": "Prüfe Verfügbarkeit …",
+      "free": "Benutzername ist verfügbar",
+      "taken": "Benutzername ist bereits vergeben",
+      "invalid": "3–32 Zeichen: a–z, 0–9, Punkt, Minus, Unterstrich"
+    }
   },
   "api": {
     "title": "API-Kunden",
@@ -343,5 +356,14 @@
     "available": "Neue Version",
     "reload": "Jetzt neu laden",
     "later": "Später"
+  },
+  "pw": {
+    "length": "Mindestens 6 Zeichen",
+    "lower": "Ein Kleinbuchstabe",
+    "upper": "Ein Großbuchstabe",
+    "digit": "Eine Zahl",
+    "symbol": "Ein Symbol (z. B. ! ? # $)",
+    "match": "Passwörter stimmen überein",
+    "confirm": "Passwort wiederholen"
   }
 }

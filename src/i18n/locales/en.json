@@ -50,7 +50,14 @@
     "password": "Password",
     "signIn": "Sign in",
     "username": "Username",
-    "invalid": "Invalid username or password."
+    "invalid": "Invalid username or password.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "captcha": "Security question",
+    "newCaptcha": "New question",
+    "captchaWrong": "Wrong answer. A new question was loaded.",
+    "captchaLoadFailed": "Could not load the security question.",
+    "locked": "Too many failed attempts. Try again in {{min}} minutes."
   },
   "common": {
     "loading": "Loading…",
@@ -80,7 +87,13 @@
     "unban": "Unlock",
     "delete": "Delete user",
     "deleteConfirm": "This permanently removes the account and its settings.",
-    "saved": "Saved."
+    "saved": "Saved.",
+    "name": {
+      "checking": "Checking availability …",
+      "free": "Username is available",
+      "taken": "Username is already taken",
+      "invalid": "3–32 chars: a–z, 0–9, dot, dash, underscore"
+    }
   },
   "api": {
     "title": "API customers",
@@ -343,5 +356,14 @@
     "available": "New version",
     "reload": "Reload now",
     "later": "Later"
+  },
+  "pw": {
+    "length": "At least 6 characters",
+    "lower": "One lowercase letter",
+    "upper": "One uppercase letter",
+    "digit": "One number",
+    "symbol": "One symbol (e.g. ! ? # $)",
+    "match": "Passwords match",
+    "confirm": "Repeat password"
   }
 }

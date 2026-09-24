@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Lock, Plus, Trash2, Unlock } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { PasswordInput } from "@/components/auth/PasswordInput";
+import { PasswordRules } from "@/components/auth/PasswordRules";
 import { DataTable, type Column } from "@/components/common/DataTable";
 import {
   AlertDialog,
@@ -22,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, type AppRole } from "@/providers/AuthProvider";
+import { USERNAME_RE, passwordValid } from "../../../supabase/functions/_shared/auth-core.ts";
 
 type ManagedUser = {
   id: string;
@@ -59,6 +62,25 @@ export function UserManagement() {
   const [deleteFor, setDeleteFor] = useState<ManagedUser | null>(null);
   const [form, setForm] = useState({ username: "", password: "", role: "trader" as AppRole });
   const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [newPw2, setNewPw2] = useState("");
+  const [nameState, setNameState] = useState<"idle" | "checking" | "free" | "taken" | "invalid">("idle");
+
+  useEffect(() => {
+    const u = form.username.trim().toLowerCase();
+    if (!u) return setNameState("idle");
+    if (!USERNAME_RE.test(u)) return setNameState("invalid");
+    setNameState("checking");
+    const id = window.setTimeout(() => {
+      call<{ available: boolean }>({ action: "check_username", username: u })
+        .then((r) => setNameState(r.available ? "free" : "taken"))
+        .catch(() => setNameState("idle"));
+    }, 350);
+    return () => window.clearTimeout(id);
+  }, [form.username]);
+
+  const createValid = nameState === "free" && passwordValid(form.password) && form.password === confirmPw;
+  const resetValid = passwordValid(newPw) && newPw === newPw2;
 
   const list = useQuery({
     queryKey: ["admin_users"],
@@ -121,7 +143,7 @@ export function UserManagement() {
         const self = r.id === user?.id;
         return (
           <div className="flex gap-1">
-            <Button size="icon" variant="ghost" className="h-7 w-7" title={t("users.resetPassword")} onClick={() => { setNewPw(""); setResetFor(r); }}>
+            <Button size="icon" variant="ghost" className="h-7 w-7" title={t("users.resetPassword")} onClick={() => { setNewPw(""); setNewPw2(""); setResetFor(r); }}>
               <KeyRound className="h-3.5 w-3.5" />
             </Button>
             <Button
@@ -147,7 +169,7 @@ export function UserManagement() {
     <section className="space-y-2">
       <div className="flex items-center justify-between">
         <h2 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{t("users.title")}</h2>
-        <Button size="sm" className="h-7 text-[11px] uppercase" onClick={() => { setForm({ username: "", password: "", role: "trader" }); setCreateOpen(true); }}>
+        <Button size="sm" className="h-7 text-[11px] uppercase" onClick={() => { setForm({ username: "", password: "", role: "trader" }); setConfirmPw(""); setCreateOpen(true); }}>
           <Plus className="mr-1 h-3.5 w-3.5" /> {t("users.create")}
         </Button>
       </div>
@@ -163,6 +185,7 @@ export function UserManagement() {
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
+              if (!createValid) return;
               run.mutate(
                 { action: "create", ...form, username: form.username.trim().toLowerCase() },
                 { onSuccess: () => setCreateOpen(false) },
@@ -171,12 +194,22 @@ export function UserManagement() {
           >
             <div className="space-y-1">
               <Label className="text-[11px] uppercase">{t("auth.username")}</Label>
-              <Input required pattern="[A-Za-z0-9._\-]{3,32}" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="h-9" />
+              <Input required autoComplete="off" autoCapitalize="none" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="h-9" />
+              {nameState !== "idle" && (
+                <p data-testid="username-state" className={nameState === "free" ? "text-[11px] text-success" : nameState === "checking" ? "text-[11px] text-muted-foreground" : "text-[11px] text-danger"}>
+                  {t(`users.name.${nameState}`)}
+                </p>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-[11px] uppercase">{t("auth.password")}</Label>
-              <Input required type="password" minLength={8} autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="h-9" />
+              <PasswordInput required autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="h-9" />
             </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] uppercase">{t("pw.confirm")}</Label>
+              <PasswordInput required autoComplete="new-password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} className="h-9" />
+            </div>
+            <PasswordRules password={form.password} confirm={confirmPw} />
             <div className="space-y-1">
               <Label className="text-[11px] uppercase">{t("users.role")}</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as AppRole })}>
@@ -189,7 +222,7 @@ export function UserManagement() {
           </form>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
-            <Button type="submit" form="create-user" disabled={run.isPending}>{t("common.save")}</Button>
+            <Button type="submit" form="create-user" disabled={run.isPending || !createValid}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -203,15 +236,24 @@ export function UserManagement() {
             id="reset-pw"
             onSubmit={(e) => {
               e.preventDefault();
-              if (resetFor) run.mutate({ action: "reset_password", user_id: resetFor.id, password: newPw }, { onSuccess: () => setResetFor(null) });
+              if (resetFor && resetValid) run.mutate({ action: "reset_password", user_id: resetFor.id, password: newPw }, { onSuccess: () => setResetFor(null) });
             }}
           >
-            <Label className="text-[11px] uppercase">{t("users.newPassword")}</Label>
-            <Input required type="password" minLength={8} autoComplete="new-password" value={newPw} onChange={(e) => setNewPw(e.target.value)} className="mt-1 h-9" />
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label className="text-[11px] uppercase">{t("users.newPassword")}</Label>
+                <PasswordInput required autoComplete="new-password" value={newPw} onChange={(e) => setNewPw(e.target.value)} className="h-9" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] uppercase">{t("pw.confirm")}</Label>
+                <PasswordInput required autoComplete="new-password" value={newPw2} onChange={(e) => setNewPw2(e.target.value)} className="h-9" />
+              </div>
+              <PasswordRules password={newPw} confirm={newPw2} />
+            </div>
           </form>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setResetFor(null)}>{t("common.cancel")}</Button>
-            <Button type="submit" form="reset-pw" disabled={run.isPending}>{t("common.save")}</Button>
+            <Button type="submit" form="reset-pw" disabled={run.isPending || !resetValid}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
