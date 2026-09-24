@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { DataTable, type Column } from "@/components/common/DataTable";
 import { ApiClients } from "@/components/config/ApiClients";
+import { CostOverview } from "@/components/config/CostOverview";
 import { UserManagement } from "@/components/config/UserManagement";
 import { PageShell } from "@/components/layout/PageShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +60,7 @@ export default function ConfigurationPage() {
           <>
             <UserManagement />
             <ApiClients />
+            <CostOverview />
           </>
         ) : (
           <section className="space-y-2">

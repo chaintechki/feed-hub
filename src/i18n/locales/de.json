@@ -129,5 +129,43 @@
       "not_found": "Spiel nicht gefunden",
       "unknown:fp": "Unbekannter Schlüssel"
     }
+  },
+  "costs": {
+    "title": "Kostenübersicht",
+    "callsToday": "Abrufe heute",
+    "hitRate": "Cache-Trefferquote",
+    "egressToday": "Datenvolumen heute",
+    "forecastDay": "Prognose Tag (variabel)",
+    "forecastMonth": "Prognose Monat",
+    "history": "Verlauf 30 Tage",
+    "cacheHits": "Cache-Treffer",
+    "dbCalls": "Datenbankabrufe",
+    "denied": "Abgewiesen",
+    "breakdown": "Monatsprognose im Detail",
+    "invocations": "Funktionsaufrufe",
+    "dbReads": "Datenbank-Lesezugriffe",
+    "egress": "Datenvolumen",
+    "fixed": "Plan-Grundgebühr",
+    "upstream": "Hauptanbieter",
+    "client": "Kunde",
+    "calls7d": "Abrufe (7T)",
+    "markup": "Aufschlag",
+    "perDay": "Kosten / Tag",
+    "perMonth": "Kosten / Monat",
+    "noClients": "Noch keine Kunden",
+    "prices": "Anbieterpreise",
+    "save": "Speichern",
+    "saved": "Preise gespeichert",
+    "hint": "Tragen Sie Ihre tatsächlichen Preise ein – die Prognose ist nur so genau wie diese Werte.",
+    "f": {
+      "currency": "Währung",
+      "price_per_million_invocations": "Preis / 1 Mio. Aufrufe",
+      "price_per_million_db_reads": "Preis / 1 Mio. DB-Lesezugriffe",
+      "price_per_gb_egress": "Preis / GB Datenvolumen",
+      "included_invocations": "Inklusive Aufrufe / Monat",
+      "included_egress_gb": "Inklusive GB / Monat",
+      "fixed_monthly": "Grundgebühr / Monat",
+      "upstream_monthly": "Hauptanbieter / Monat"
+    }
   }
 }
