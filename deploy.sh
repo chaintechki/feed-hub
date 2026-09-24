@@ -5,7 +5,7 @@
 # Every step checks first and only installs / configures what is missing:
 #   0. bootstrap: installs git, clones REPO_URL to APP_DIR, restarts itself there
 #   1. system packages (nginx, certbot, ufw, fail2ban, build tools, ...)
-#   2. Node.js 20+ and npm, swap, time sync, firewall, fail2ban, security updates
+#   2. Node.js 22+ and npm >= 10.9, swap, time sync, firewall, fail2ban, security updates
 #   3. git pull, version bump, npm install, build, backup, publish to web root
 #   4. nginx site (SPA fallback, caching, security headers)
 #   5. DNS check, Let's Encrypt certificate, HTTPS, auto-renewal
@@ -36,7 +36,7 @@ BACKUP_DIR="${BACKUP_DIR:-/var/backups/feed-panel}"
 STATE_DIR="${STATE_DIR:-/var/lib/feed-panel}"
 ACME_ROOT="${ACME_ROOT:-/var/www/letsencrypt}"
 KEEP_BACKUPS="${KEEP_BACKUPS:-10}"
-NODE_MAJOR="${NODE_MAJOR:-20}"
+NODE_MAJOR="${NODE_MAJOR:-22}"
 REPO_URL="${REPO_URL:-}"
 APP_DIR="${APP_DIR:-/opt/feed-panel}"
 SKIP_FIREWALL="${SKIP_FIREWALL:-0}"
@@ -109,6 +109,13 @@ if ! node_ok; then
   apt-get install -y nodejs
 fi
 node_ok || die "Node.js >= $NODE_MAJOR with npm is required."
+# Older npm releases crash with "Cannot read properties of null (reading 'edgesOut')"
+# when package.json uses "overrides". Make sure npm is at least 10.9.
+if ! node -e 'const [a,b]=process.argv[1].split(".").map(Number);process.exit(a>10||(a===10&&b>=9)?0:1)' "$(npm -v)"; then
+  log "Updating npm ($(npm -v) is too old)"
+  npm install -g npm@10 --no-audit --no-fund
+  hash -r
+fi
 ok "node $(node -v), npm $(npm -v)"
 
 log "Checking swap"
