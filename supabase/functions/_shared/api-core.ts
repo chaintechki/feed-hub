@@ -154,7 +154,7 @@ export function buildOpenApi(baseUrl: string, client?: DocClient | null) {
 
   return {
     openapi: "3.1.0",
-    info: { title: "Feed Panel Odds API", version: "1.1.0", description: desc },
+    info: { title: "Feed Panel Odds API", version: "1.2.0", description: desc },
     servers: [{ url: `${baseUrl}/feed-api` }],
     security: [{ ApiKey: [] }],
     paths: {
@@ -170,6 +170,8 @@ export function buildOpenApi(baseUrl: string, client?: DocClient | null) {
             { name: "status", in: "query", schema: { type: "string", enum: ["not_started", "live", "ended", "closed"] } },
             { name: "since", in: "query", schema: { type: "string", format: "date-time" }, description: "Only matches updated since this time" },
             { name: "odds", in: "query", schema: { type: "boolean", default: true }, description: "false = schedule only" },
+            { name: "groups", in: "query", schema: { type: "string" }, example: "main,goals", description: "Comma-separated market groups: main, goals, half, periods, corners, cards, players, other" },
+            { name: "lang", in: "query", schema: { type: "string", enum: ["en", "de"], default: "en" }, description: "Language of market/outcome names" },
             { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 500, default: 100 } },
             { name: "offset", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
           ],
@@ -184,6 +186,7 @@ export function buildOpenApi(baseUrl: string, client?: DocClient | null) {
         },
       },
       "/outrights": { get: { summary: "Published outrights with competitor odds", parameters: [fmtParam], responses: stdResponses(list("Outright")) } },
+      "/markets": { get: { summary: "Market catalog (names, groups, outcomes)", parameters: [fmtParam, { name: "lang", in: "query", schema: { type: "string", enum: ["en", "de"], default: "en" } }], responses: stdResponses(list("MarketDescription")) } },
       "/results": { get: { summary: "Settled markets (latest 500)", parameters: [fmtParam], responses: stdResponses(list("Result")) } },
     },
     components: {
@@ -201,6 +204,7 @@ export function buildOpenApi(baseUrl: string, client?: DocClient | null) {
             formats: { type: "array", items: { type: "string" } },
             sport_ids: { type: "array", items: { type: "string" } },
             tournament_ids: { type: "array", items: { type: "string" } },
+            market_groups: { type: "array", items: { type: "string" } },
             rate_limit_per_min: { type: "integer" },
             remaining: { type: "integer" },
             key_expires_at: { type: ["string", "null"], format: "date-time" },
@@ -214,10 +218,14 @@ export function buildOpenApi(baseUrl: string, client?: DocClient | null) {
             categories: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" }, country_code: { type: ["string", "null"] }, tournaments: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" } } } } } } },
           },
         },
-        Outcome: { type: "object", properties: { id: { type: "string" }, odds: { type: "number" } } },
+        Outcome: { type: "object", properties: { id: { type: "string" }, name: { type: "string" }, odds: { type: "number" } } },
+        MarketDescription: {
+          type: "object",
+          properties: { uof_id: { type: "integer" }, market: { type: "string" }, name: { type: "string" }, group: { type: "string", enum: ["main", "goals", "half", "periods", "corners", "cards", "players", "other"] }, specifiers: { type: "array", items: { type: "string" } }, outcomes: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" } } } } },
+        },
         Market: {
           type: "object",
-          properties: { market: { type: "string" }, specifier: { type: ["string", "null"] }, active: { type: "boolean" }, updated_at: { type: "string", format: "date-time" }, outcomes: { type: "array", items: { $ref: "#/components/schemas/Outcome" } } },
+          properties: { market: { type: "string" }, uof_id: { type: ["integer", "null"] }, name: { type: "string" }, group: { type: "string", enum: ["main", "goals", "half", "periods", "corners", "cards", "players", "other"] }, specifier: { type: ["string", "null"] }, active: { type: "boolean" }, updated_at: { type: "string", format: "date-time" }, outcomes: { type: "array", items: { $ref: "#/components/schemas/Outcome" } } },
         },
         Match: {
           type: "object",
