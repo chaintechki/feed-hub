@@ -49,14 +49,11 @@
   },
   "auth": {
     "title": "Feed Panel Anmeldung",
-    "subtitle": "Mit Ihrem Betreiberkonto anmelden",
-    "email": "E-Mail",
+    "subtitle": "Mit Benutzername anmelden",
     "password": "Passwort",
     "signIn": "Anmelden",
-    "signUp": "Konto erstellen",
-    "toggleToSignUp": "Noch kein Konto? Registrieren",
-    "toggleToSignIn": "Bereits registriert? Anmelden",
-    "checkEmail": "Bitte bestätigen Sie Ihre E-Mail-Adresse."
+    "username": "Benutzername",
+    "invalid": "Benutzername oder Passwort falsch."
   },
   "common": {
     "loading": "Lädt…",

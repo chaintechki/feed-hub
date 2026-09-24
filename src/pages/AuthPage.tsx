@@ -11,12 +11,14 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
 
+export const USERNAME_DOMAIN = "feedpanel.local";
+export const usernameToEmail = (u: string) => `${u.trim().toLowerCase()}@${USERNAME_DOMAIN}`;
+
 export default function AuthPage() {
   const { t } = useTranslation();
   const { session, loading } = useAuth();
   const location = useLocation();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -28,24 +30,12 @@ export default function AuthPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: window.location.origin },
-        });
-        if (error) throw error;
-        toast.success(t("auth.checkEmail"));
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Authentication failed");
-    } finally {
-      setBusy(false);
-    }
+    const { error } = await supabase.auth.signInWithPassword({
+      email: usernameToEmail(username),
+      password,
+    });
+    if (error) toast.error(t("auth.invalid"));
+    setBusy(false);
   }
 
   return (
@@ -63,16 +53,17 @@ export default function AuthPage() {
 
         <div className="space-y-3">
           <div className="space-y-1">
-            <Label htmlFor="email" className="text-[11px] uppercase tracking-wide">
-              {t("auth.email")}
+            <Label htmlFor="username" className="text-[11px] uppercase tracking-wide">
+              {t("auth.username")}
             </Label>
             <Input
-              id="email"
-              type="email"
+              id="username"
               required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+              autoCapitalize="none"
+              pattern="[A-Za-z0-9._\-]{3,32}"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className="h-9"
             />
           </div>
@@ -84,8 +75,7 @@ export default function AuthPage() {
               id="password"
               type="password"
               required
-              minLength={6}
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="h-9"
@@ -94,16 +84,8 @@ export default function AuthPage() {
         </div>
 
         <Button type="submit" disabled={busy} className="mt-5 h-9 w-full text-xs uppercase">
-          {mode === "signup" ? t("auth.signUp") : t("auth.signIn")}
+          {t("auth.signIn")}
         </Button>
-
-        <button
-          type="button"
-          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          className="mt-3 w-full text-[11px] text-muted-foreground hover:text-foreground"
-        >
-          {mode === "signin" ? t("auth.toggleToSignUp") : t("auth.toggleToSignIn")}
-        </button>
       </motion.form>
     </div>
   );

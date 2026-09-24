@@ -15,6 +15,13 @@
       "when": 1790210515451,
       "tag": "0001_admin_profiles_read_and_demo_feed_data",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790211339128,
+      "tag": "0002_profiles_username",
+      "breakpoints": true
     }
   ]
 }

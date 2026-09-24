@@ -5,7 +5,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
 
-type Profile = { id: string; email: string | null; display_name: string | null; created_at: string };
+type Profile = { id: string; username: string | null; display_name: string | null; created_at: string };
 type Audit = { id: string; action: string; entity: string | null; entity_id: string | null; created_at: string };
 
 export default function ConfigurationPage() {
@@ -17,7 +17,7 @@ export default function ConfigurationPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id,email,display_name,created_at")
+        .select("id,username,display_name,created_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as Profile[];
@@ -40,7 +40,7 @@ export default function ConfigurationPage() {
 
   const profileColumns: Column<Profile>[] = [
     { key: "name", header: "Operator", render: (r) => r.display_name ?? "—" },
-    { key: "email", header: "E-mail", render: (r) => r.email ?? "—" },
+    { key: "username", header: "Username", render: (r) => r.username ?? "—" },
     { key: "created", header: "Created", render: (r) => new Date(r.created_at).toLocaleDateString() },
   ];
 
