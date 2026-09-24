@@ -74,6 +74,7 @@
     "search": "Suche"
   },
   "users": {
+    "roles": { "super_admin": "Super-Admin", "admin": "Admin", "trader": "Trader", "viewer": "Viewer" },
     "title": "Benutzer",
     "create": "Benutzer anlegen",
     "role": "Rolle",
