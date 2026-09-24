@@ -317,6 +317,77 @@ else
 fi
 certbot renew --dry-run --quiet || echo "    Warning: renewal dry-run failed – check 'certbot renew --dry-run'."
 
+# ---------------------------------------------------------------- 6. feed worker
+log "Installing feed worker (odds feed connection)"
+UOF_ENV=/etc/feed-panel/uof.env
+if [ ! -f "$UOF_ENV" ]; then
+  if [ -t 0 ]; then
+    echo "    Feed credentials are needed once (stored in $UOF_ENV, mode 600)."
+    read -rp "    Access token: " A_TOKEN
+    read -rp "    API host [uof.oddz.club]: " A_API; A_API="${A_API:-uof.oddz.club}"
+    read -rp "    MQ host [mq-uof.oddz.club]: " A_MQ; A_MQ="${A_MQ:-mq-uof.oddz.club}"
+    read -rp "    MQ port [5671]: " A_PORT; A_PORT="${A_PORT:-5671}"
+    read -rp "    Virtual host: " A_VHOST
+    read -rp "    MQ username: " A_USER
+    read -rsp "    MQ password: " A_PASS; echo
+    read -rp "    Node ID: " A_NODE
+    umask 077
+    cat > "$UOF_ENV" <<EOF
+UOF_ACCESS_TOKEN=$A_TOKEN
+UOF_API_HOST=$A_API
+UOF_MQ_HOST=$A_MQ
+UOF_MQ_PORT=$A_PORT
+UOF_MQ_VHOST=$A_VHOST
+UOF_MQ_USER=$A_USER
+UOF_MQ_PASS=$A_PASS
+UOF_NODE_ID=$A_NODE
+EOF
+  else
+    echo "    Warning: $UOF_ENV missing – run deploy.sh interactively once to enter the feed credentials. Worker skipped."
+  fi
+fi
+if [ -f "$UOF_ENV" ]; then
+  chmod 600 "$UOF_ENV"
+  BACKEND_KEY="$(grep -E '^VITE_SUPABASE_PUBLISHABLE_KEY=' "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"'"'")"
+  id -u feedworker >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin feedworker
+  mkdir -p /opt/feed-worker
+  rsync -a --delete --exclude node_modules "$ROOT/feed-worker/" /opt/feed-worker/
+  (cd /opt/feed-worker && npm install --omit=dev --no-audit --no-fund >/dev/null)
+  chown -R feedworker:feedworker /opt/feed-worker
+  umask 077
+  printf 'FEED_BACKEND_URL=%s\nFEED_BACKEND_KEY=%s\n' "$UPSTREAM" "$BACKEND_KEY" > /etc/feed-panel/worker.env
+  chown root:feedworker "$UOF_ENV" /etc/feed-panel/worker.env
+  chmod 640 "$UOF_ENV" /etc/feed-panel/worker.env
+  cat > /etc/systemd/system/feed-worker.service <<'UNIT'
+[Unit]
+Description=Feed Panel odds feed worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=feedworker
+WorkingDirectory=/opt/feed-worker
+EnvironmentFile=/etc/feed-panel/uof.env
+EnvironmentFile=/etc/feed-panel/worker.env
+ExecStart=/usr/bin/env node index.mjs
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  systemctl daemon-reload
+  systemctl enable feed-worker >/dev/null 2>&1
+  systemctl restart feed-worker
+  sleep 3
+  systemctl is-active --quiet feed-worker && echo "    Feed worker running (logs: journalctl -u feed-worker -f)" \
+    || echo "    Warning: feed worker not running – check 'journalctl -u feed-worker'."
+fi
+
 # Keep the working tree clean for the next git pull.
 git checkout -- package.json package-lock.json 2>/dev/null || true
 
