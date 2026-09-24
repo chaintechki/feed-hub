@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, KeyRound, Pencil, Plus, Power, Trash2 } from "lucide-react";
+import { Copy, KeyRound, Pencil, Plus, Power, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -13,8 +13,20 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useSportTree } from "@/lib/feed/queries";
+import { isExpired, isValidIpRule } from "../../../supabase/functions/_shared/api-core.ts";
 
-type ApiKey = { id: string; kind: "server" | "widget"; prefix: string; active: boolean; last_used_at: string | null };
+type ApiKey = {
+  id: string;
+  kind: "server" | "widget";
+  prefix: string;
+  active: boolean;
+  last_used_at: string | null;
+  expires_at: string | null;
+  allowed_ips: string[];
+  label: string;
+  rotated_from: string | null;
+};
+type KeyForm = { client_id: string; kind: "server" | "widget"; label: string; expires: string; ips: string };
 type ClientFields = {
   name: string;
   active: boolean;
@@ -63,7 +75,8 @@ export function ApiClients() {
   const tree = useSportTree();
   const [edit, setEdit] = useState<{ id?: string | undefined; f: ClientFields } | null>(null);
   const [domains, setDomains] = useState("");
-  const [newKey, setNewKey] = useState<{ key: string; kind: string } | null>(null);
+  const [newKey, setNewKey] = useState<{ key: string; kind: string; oldExpires?: string } | null>(null);
+  const [keyForm, setKeyForm] = useState<KeyForm | null>(null);
 
   const list = useQuery({
     queryKey: ["api_clients"],
@@ -71,9 +84,12 @@ export function ApiClients() {
   });
 
   const run = useMutation({
-    mutationFn: (body: Record<string, unknown>) => call<{ key?: string }>(body),
+    mutationFn: (body: Record<string, unknown>) => call<{ key?: string; old_expires_at?: string }>(body),
     onSuccess: (r, body) => {
-      if (r?.key) setNewKey({ key: r.key, kind: String(body['kind']) });
+      if (r?.key) {
+        setKeyForm(null);
+        setNewKey({ key: r.key, kind: String(body['kind']), ...(r.old_expires_at ? { oldExpires: r.old_expires_at } : {}) });
+      }
       else toast.success(t("users.saved"));
       void qc.invalidateQueries({ queryKey: ["api_clients"] });
     },
@@ -264,10 +280,10 @@ export function ApiClients() {
                   : t("api.allData")}
               </span>
               <div className="ml-auto flex gap-1">
-                <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => run.mutate({ action: "create_key", client_id: c.id, kind: "server" })}>
+                <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => setKeyForm({ client_id: c.id, kind: "server", label: "", expires: "", ips: "" })}>
                   <KeyRound className="mr-1 h-3.5 w-3.5" /> API
                 </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => run.mutate({ action: "create_key", client_id: c.id, kind: "widget" })}>
+                <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => setKeyForm({ client_id: c.id, kind: "widget", label: "", expires: "", ips: "" })}>
                   <KeyRound className="mr-1 h-3.5 w-3.5" /> Widget
                 </Button>
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => open(c)}>
@@ -288,15 +304,32 @@ export function ApiClients() {
                 <tbody>
                   {c.keys.map((k) => (
                     <tr key={k.id} className="border-b border-border last:border-0">
-                      <td className="px-3 py-1.5 font-mono">{k.prefix}…</td>
+                      <td className="px-3 py-1.5 font-mono">
+                        {k.prefix}…{k.label && <span className="ml-2 font-sans text-muted-foreground">{k.label}</span>}
+                      </td>
                       <td className="px-3 py-1.5 uppercase">{k.kind}</td>
-                      <td className={k.active ? "px-3 py-1.5 text-success" : "px-3 py-1.5 text-danger"}>
-                        {k.active ? t("users.active") : t("users.banned")}
+                      <td className={k.active && !isExpired(k.expires_at) ? "px-3 py-1.5 text-success" : "px-3 py-1.5 text-danger"}>
+                        {!k.active ? t("users.banned") : isExpired(k.expires_at) ? t("api.expired") : t("users.active")}
+                      </td>
+                      <td className="px-3 py-1.5 text-muted-foreground">
+                        {t("api.expires")}: {k.expires_at ? new Date(k.expires_at).toLocaleString() : t("api.never")}
+                      </td>
+                      <td className="px-3 py-1.5 text-muted-foreground">
+                        {k.kind === "server" ? `IP: ${k.allowed_ips.length ? k.allowed_ips.join(", ") : t("api.anyIp")}` : ""}
                       </td>
                       <td className="px-3 py-1.5 text-muted-foreground">
                         {t("api.lastUsed")}: {k.last_used_at ? new Date(k.last_used_at).toLocaleString() : "—"}
                       </td>
                       <td className="px-3 py-1.5 text-right">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          title={t("api.rotate")}
+                          onClick={() => confirm(t("api.rotateConfirm")) && run.mutate({ action: "rotate_key", key_id: k.id, kind: k.kind, grace_hours: 24 })}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        </Button>
                         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => run.mutate({ action: "toggle_key", key_id: k.id, active: !k.active })}>
                           <Power className="h-3.5 w-3.5" />
                         </Button>
@@ -388,6 +421,57 @@ export function ApiClients() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!keyForm} onOpenChange={(o) => !o && setKeyForm(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">{keyForm?.kind === "widget" ? t("api.newWidgetKey") : t("api.newServerKey")}</DialogTitle>
+          </DialogHeader>
+          {keyForm && (() => {
+            const ips = keyForm.ips.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean);
+            const badIp = ips.find((x) => !isValidIpRule(x));
+            const badDate = !!keyForm.expires && new Date(keyForm.expires).getTime() <= Date.now();
+            return (
+              <div className="space-y-3 text-[11px]">
+                <div className="space-y-1">
+                  <Label className="text-[11px] uppercase">{t("api.keyLabel")}</Label>
+                  <Input value={keyForm.label} maxLength={60} placeholder="Production" onChange={(e) => setKeyForm({ ...keyForm, label: e.target.value })} className="h-8" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] uppercase">{t("api.expires")}</Label>
+                  <Input type="datetime-local" value={keyForm.expires} onChange={(e) => setKeyForm({ ...keyForm, expires: e.target.value })} className="h-8" />
+                  <p className="text-muted-foreground">{badDate ? <span className="text-danger">{t("api.expiresFuture")}</span> : t("api.expiresHint")}</p>
+                </div>
+                {keyForm.kind === "server" && (
+                  <div className="space-y-1">
+                    <Label className="text-[11px] uppercase">{t("api.ipWhitelist")}</Label>
+                    <Input value={keyForm.ips} placeholder="203.0.113.10, 198.51.100.0/24" onChange={(e) => setKeyForm({ ...keyForm, ips: e.target.value })} className="h-8 font-mono" />
+                    <p className="text-muted-foreground">{badIp ? <span className="text-danger">{t("api.ipInvalid")}: {badIp}</span> : t("api.ipHint")}</p>
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setKeyForm(null)}>{t("common.cancel")}</Button>
+                  <Button
+                    disabled={!!badIp || badDate || run.isPending}
+                    onClick={() =>
+                      run.mutate({
+                        action: "create_key",
+                        client_id: keyForm.client_id,
+                        kind: keyForm.kind,
+                        label: keyForm.label,
+                        expires_at: keyForm.expires ? new Date(keyForm.expires).toISOString() : null,
+                        allowed_ips: keyForm.kind === "server" ? ips : [],
+                      })
+                    }
+                  >
+                    {t("api.generate")}
+                  </Button>
+                </DialogFooter>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!newKey} onOpenChange={(o) => !o && setNewKey(null)}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
@@ -406,7 +490,7 @@ export function ApiClients() {
               <pre className="panel-scroll overflow-auto rounded-sm bg-muted p-2 font-mono text-[10px]">
                 {newKey.kind === "widget"
                   ? `<script src="${window.location.origin}/widget.js"\n  data-key="${newKey.key}"\n  data-api="${FEED_BASE}/feed-widget"\n  data-sport="sr:sport:1"></script>`
-                  : `curl -H "x-api-key: ${newKey.key}" \\\n  "${FEED_BASE}/feed-api/matches?format=xml"`}
+                  : `curl -H "X-API-Key: ${newKey.key}" \\\n  "${FEED_BASE}/feed-api/matches?format=xml"`}
               </pre>
             </div>
           )}
