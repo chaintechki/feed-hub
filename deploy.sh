@@ -164,25 +164,25 @@ write_common_locations() {
     }
 
     # Update-critical files: never cached, so new versions are detected immediately.
-    location = /index.html  { add_header Cache-Control "no-cache, no-store, must-revalidate" always; try_files \$uri =404; }
-    location = /sw.js       { add_header Cache-Control "no-cache, no-store, must-revalidate" always; try_files \$uri =404; }
-    location = /version.json { add_header Cache-Control "no-cache, no-store, must-revalidate" always; try_files \$uri =404; }
-    location = /manifest.webmanifest { add_header Cache-Control "no-cache" always; try_files \$uri =404; }
+    location = /index.html  { include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "no-cache, no-store, must-revalidate" always; try_files \$uri =404; }
+    location = /sw.js       { include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "no-cache, no-store, must-revalidate" always; try_files \$uri =404; }
+    location = /version.json { include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "no-cache, no-store, must-revalidate" always; try_files \$uri =404; }
+    location = /manifest.webmanifest { include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "no-cache" always; try_files \$uri =404; }
 
     # Hashed build assets: cache for a year.
     location /assets/ {
-        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "public, max-age=31536000, immutable" always;
         try_files \$uri =404;
     }
 
     location ~* \.(?:png|jpg|jpeg|svg|ico|webp|woff2?)$ {
-        add_header Cache-Control "public, max-age=604800" always;
+        include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "public, max-age=604800" always;
         try_files \$uri =404;
     }
 
     # SPA fallback
     location / {
-        add_header Cache-Control "no-cache" always;
+        include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "no-cache" always;
         try_files \$uri \$uri/ /index.html;
     }
 NGINX
@@ -200,9 +200,21 @@ proxy_set_header X-Forwarded-Proto https;
 proxy_hide_header Access-Control-Allow-Origin;
 add_header Access-Control-Allow-Origin \$http_origin always;
 add_header Vary Origin always;
+include /etc/nginx/snippets/feed-panel-security.conf;
 proxy_buffering off;
 proxy_read_timeout 60s;
 client_max_body_size 5m;
+NGINX
+}
+
+write_security_snippet() {
+  cat > /etc/nginx/snippets/feed-panel-security.conf <<NGINX
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "SAMEORIGIN" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss://$DOMAIN; worker-src 'self'; manifest-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
 NGINX
 }
 
@@ -249,12 +261,7 @@ server {
     ssl_stapling on;
     ssl_stapling_verify on;
 
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss://$DOMAIN; worker-src 'self'; manifest-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
+    include /etc/nginx/snippets/feed-panel-security.conf;
 
     gzip on;
     gzip_vary on;
@@ -279,6 +286,7 @@ log "Configuring nginx for $SERVER_NAMES"
 [ -L /etc/nginx/sites-enabled/default ] && rm -f /etc/nginx/sites-enabled/default
 ln -sf "$SITE_FILE" "$SITE_LINK"
 write_proxy_snippet
+write_security_snippet
 
 if [ ! -f "$CERT_DIR/fullchain.pem" ]; then
   write_http_only
