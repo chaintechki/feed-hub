@@ -105,7 +105,23 @@
     "scopeHint": "Nothing selected = all data. Sport and league selections both restrict.",
     "newKey": "New key created",
     "onceHint": "Copy this key now – it will not be shown again.",
-    "example": "Integration example"
+    "example": "Integration example",
+    "expired": "Expired",
+    "expires": "Expires",
+    "never": "never",
+    "anyIp": "any",
+    "rotate": "Rotate",
+    "rotateConfirm": "Generate a new key? The old key stays valid for 24 hours.",
+    "rotatedHint": "The old key stays valid until",
+    "newServerKey": "New API key",
+    "newWidgetKey": "New widget key",
+    "keyLabel": "Label",
+    "expiresHint": "Leave empty for no expiry.",
+    "expiresFuture": "Date must be in the future.",
+    "ipWhitelist": "IP whitelist",
+    "ipHint": "Empty = any IP. Single IPs or CIDR ranges, comma separated.",
+    "ipInvalid": "Invalid",
+    "generate": "Generate"
   },
   "usage": {
     "title": "Usage statistics",
@@ -127,7 +143,13 @@
       "unknown_endpoint": "Unknown endpoint",
       "rate_limited": "Rate limit exceeded",
       "not_found": "Match not found",
-      "unknown:fp": "Unknown key"
+      "unknown:fp": "Unknown key",
+      "key_expired": "Key expired",
+      "ip_denied": "IP not allowed",
+      "key_in_query": "Key in URL",
+      "param_invalid": "Invalid parameter",
+      "format_invalid": "Invalid format",
+      "key_missing": "No key"
     }
   },
   "mu": {
