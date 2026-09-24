@@ -96,6 +96,32 @@ export type Database = {
           },
         ]
       }
+      api_client_exclusions: {
+        Row: {
+          admin_id: string
+          client_id: string
+          created_at: string
+        }
+        Insert: {
+          admin_id: string
+          client_id: string
+          created_at?: string
+        }
+        Update: {
+          admin_id?: string
+          client_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_client_exclusions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "api_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_clients: {
         Row: {
           active: boolean
@@ -1260,6 +1286,10 @@ export type Database = {
           _endpoint: string
         }
         Returns: undefined
+      }
+      can_see_api_client: {
+        Args: { _client: string; _user: string }
+        Returns: boolean
       }
       has_role: {
         Args: {
