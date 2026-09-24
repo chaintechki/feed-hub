@@ -49,14 +49,11 @@
   },
   "auth": {
     "title": "Feed Panel sign in",
-    "subtitle": "Sign in with your operator account",
-    "email": "E-mail",
+    "subtitle": "Sign in with your username",
     "password": "Password",
     "signIn": "Sign in",
-    "signUp": "Create account",
-    "toggleToSignUp": "Need an account? Register",
-    "toggleToSignIn": "Already registered? Sign in",
-    "checkEmail": "Check your inbox to confirm your address."
+    "username": "Username",
+    "invalid": "Invalid username or password."
   },
   "common": {
     "loading": "Loading…",

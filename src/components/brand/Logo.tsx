@@ -3,18 +3,18 @@ import { cn } from "@/lib/utils";
 /** Wordmark used in the panel chrome. */
 export function Logo({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 220 28" className={cn("h-5 w-auto", className)} role="img" aria-label="Feed Panel">
-      <g fill="currentColor">
-        <path d="M4 3h9.6c4.3 0 6.9 2 6.9 5.3 0 2.1-1.1 3.6-3 4.3 2.4.6 3.9 2.3 3.9 4.9 0 3.7-2.8 5.9-7.5 5.9H4V3Zm5 7.8h3.7c1.5 0 2.4-.7 2.4-1.9S14.2 7 12.7 7H9v3.8Zm0 8.6h4.2c1.7 0 2.7-.8 2.7-2.1s-1-2.1-2.7-2.1H9v4.2Z" />
-        <path d="M23.6 9.4h4.7v1.9c.9-1.4 2.3-2.2 4.2-2.2 3.5 0 5.6 2.4 5.6 6.3v8.1h-4.8v-7.3c0-1.9-.9-3-2.5-3s-2.6 1.1-2.6 3v7.3h-4.6V9.4Z" />
-        <path d="M47.6 9.1c4.4 0 7.4 3.1 7.4 7.4v1.2h-10c.4 1.6 1.6 2.5 3.3 2.5 1.3 0 2.3-.4 2.9-1.3l3.4 2c-1.3 2-3.6 3.1-6.5 3.1-4.7 0-7.9-3.1-7.9-7.5s3.1-7.4 7.4-7.4Zm-2.6 5.7h5.2c-.3-1.4-1.3-2.2-2.6-2.2s-2.3.8-2.6 2.2Z" />
-      </g>
-      <rect x="62" y="4" width="3" height="20" rx="1.5" fill="hsl(var(--success))" />
-      <g fill="currentColor" opacity="0.92">
-        <path d="M73 3h5v17.8h9V24H73V3Z" />
-        <path d="M95.6 9.1c4.4 0 7.4 3.1 7.4 7.4v1.2H93c.4 1.6 1.6 2.5 3.3 2.5 1.3 0 2.3-.4 2.9-1.3l3.4 2c-1.3 2-3.6 3.1-6.5 3.1-4.7 0-7.9-3.1-7.9-7.5s3.1-7.4 7.4-7.4Zm-2.6 5.7h5.2c-.3-1.4-1.3-2.2-2.6-2.2s-2.3.8-2.6 2.2Z" />
-        <path d="M105.6 9.4h4.7v1.9c.9-1.4 2.3-2.2 4.2-2.2 3.5 0 5.6 2.4 5.6 6.3v8.1h-4.8v-7.3c0-1.9-.9-3-2.5-3s-2.6 1.1-2.6 3v7.3h-4.6V9.4Z" />
-      </g>
+    <svg viewBox="0 0 150 28" className={cn("h-5 w-auto", className)} role="img" aria-label="Feed Panel">
+      <text
+        x="0"
+        y="21"
+        fill="currentColor"
+        fontFamily="inherit"
+        fontSize="22"
+        fontWeight="700"
+        letterSpacing="-0.3"
+      >
+        Feed Panel
+      </text>
     </svg>
   );
 }
