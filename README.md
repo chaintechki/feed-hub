@@ -32,12 +32,25 @@ belong in server-side functions.
 
 ## Production build and deployment
 
-On the server (Debian/Ubuntu, as root, inside the cloned repository):
+### First install on an empty Ubuntu 24.04 server
+
+```bash
+curl -fsSL <raw-url-of-deploy.sh> -o deploy.sh
+sudo REPO_URL=https://github.com/<you>/<repo>.git bash deploy.sh
+```
+
+The script checks and installs everything that is missing (git, nginx,
+certbot, Node.js 20 + npm, build tools, ufw, fail2ban, unattended-upgrades,
+swap, time sync), clones the repository to `/opt/feed-panel` and continues there.
+HTTPS is only requested once DNS points to the server.
+
+### Updates (inside the cloned repository)
 
 ```bash
 sudo ./deploy.sh                       # feed.feedarea.net, branch main
 sudo BRANCH=release ./deploy.sh
 sudo SKIP_PULL=1 NO_BUMP=1 ./deploy.sh
+sudo SKIP_FIREWALL=1 ./deploy.sh       # leave ufw untouched
 ```
 
 `deploy.sh` installs missing packages, runs `git pull`, raises the patch
