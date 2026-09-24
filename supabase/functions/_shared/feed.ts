@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { catalog, resolveTemplate, specString, uofIdOf } from "./markets.ts";
 import { ERROR_CODES, ipAllowed, isExpired, priceOdds, type ErrorCode, type RoundingMode } from "./api-core.ts";
 export { ERROR_CODES, buildOpenApi, clientIp, type ErrorCode } from "./api-core.ts";
 
@@ -12,6 +13,7 @@ export type Client = {
   rate_limit_per_min: number;
   allowed_domains: string[];
   formats: string[];
+  market_groups?: string[];
 };
 
 export const db = (): SupabaseClient =>
@@ -167,27 +169,61 @@ export async function getMatches(sb: SupabaseClient, c: Client, opts: MatchOpts)
   if (!opts.withOdds || !list.length) return { total, rows: list.map(({ _susp, ...m }) => ({ ...m, markets: [] as unknown[] })) };
   const { data: odds } = await sb
     .from("match_odds")
-    .select("match_id,market,specifier,outcomes,updated_at,suspended")
+    .select("match_id,market,specifier,outcomes,updated_at,suspended,market_group")
     .eq("source", "own")
     .eq("suspended", false)
     .in("match_id", list.map((m) => m.id));
+  const allowed = (c.market_groups ?? []).length ? new Set(c.market_groups) : null;
+  const wanted = opts.groups?.length ? new Set(opts.groups) : null;
+  const cat = await catalog(sb).catch(() => new Map());
+  const de = opts.lang === "de";
   return {
     total,
     rows: list.map(({ _susp, ...m }) => ({
       ...m,
       markets: (odds ?? [])
-        .filter((o) => o.match_id === m.id)
-        .map((o) => ({
-          market: o.market,
-          specifier: o.specifier,
-          updated_at: o.updated_at,
-          active: !_susp,
-          outcomes: ((o.outcomes as Outcome[]) ?? [])
-            .filter((x) => typeof x.odds === "number" && x.odds > 1)
-            .map((x) => ({ id: x.label ?? x.name, odds: applyMarkup(x.odds, c.markup_pct, opts.rounding) })),
-        })),
+        .filter((o) => o.match_id === m.id && (!allowed || allowed.has(o.market_group)) && (!wanted || wanted.has(o.market_group)))
+        .map((o) => {
+          const uid = uofIdOf(o.market);
+          const ce = uid ? cat.get(uid) : undefined;
+          const spec = specString(o.market, o.specifier);
+          const outNames = new Map<string, string>(((de && ce?.outcomes_de) || ce?.outcomes || []).map((x: { id: string; name: string }) => [x.id, x.name]));
+          return {
+            market: o.market,
+            uof_id: uid,
+            name: ce ? resolveTemplate((de && ce.name_de) || ce.name, spec, m.home_team, m.away_team) : o.market,
+            group: o.market_group,
+            specifier: o.specifier,
+            updated_at: o.updated_at,
+            active: !_susp,
+            outcomes: ((o.outcomes as Outcome[]) ?? [])
+              .filter((x) => typeof x.odds === "number" && x.odds > 1)
+              .map((x) => {
+                const id = String(x.label ?? x.name);
+                const raw = outNames.get(id);
+                return { id, name: raw ? resolveTemplate(raw, spec, m.home_team, m.away_team) : id, odds: applyMarkup(x.odds, c.markup_pct, opts.rounding) };
+              }),
+          };
+        }),
     })),
   };
+}
+
+/** Market catalog for customers (base variants only). */
+export async function getMarkets(sb: SupabaseClient, c: Client, lang: "en" | "de" = "en") {
+  const cat = await catalog(sb);
+  const allowed = (c.market_groups ?? []).length ? new Set(c.market_groups) : null;
+  return [...cat.values()]
+    .filter((m) => !allowed || allowed.has(m.group))
+    .sort((a, b) => a.id - b.id)
+    .map((m) => ({
+      uof_id: m.id,
+      market: `m${m.id}`,
+      name: (lang === "de" && m.name_de) || m.name,
+      group: m.group,
+      specifiers: m.specifiers ? m.specifiers.split("|") : [],
+      outcomes: ((lang === "de" && m.outcomes_de) || m.outcomes).map((o) => ({ id: o.id, name: o.name })),
+    }));
 }
 
 export async function getOutrights(sb: SupabaseClient, c: Client, rounding: RoundingMode = "none") {
@@ -240,9 +276,13 @@ export function toXml(kind: string, data: any[], meta?: Record<string, number>):
       `<sport_event${attrs({ id: m.id, scheduled: m.scheduled, status: m.status, match_minute: m.match_minute, sport_id: m.sport_id, category_id: m.category_id, tournament_id: m.tournament_id })}>` +
       `<competitors><competitor qualifier="home"${attrs({ name: m.home_team })}/><competitor qualifier="away"${attrs({ name: m.away_team })}/></competitors>` +
       (m.markets.length ? `<odds>` + m.markets.map((mk: any) =>
-        `<market${attrs({ id: mk.market, specifiers: mk.specifier, status: mk.active ? 1 : -1 })}>` +
-        mk.outcomes.map((o: any) => `<outcome${attrs({ id: o.id, odds: o.odds, active: mk.active ? 1 : 0 })}/>`).join("") +
+        `<market${attrs({ id: mk.market, uof_id: mk.uof_id, name: mk.name, group: mk.group, specifiers: mk.specifier, status: mk.active ? 1 : -1 })}>` +
+        mk.outcomes.map((o: any) => `<outcome${attrs({ id: o.id, name: o.name, odds: o.odds, active: mk.active ? 1 : 0 })}/>`).join("") +
         `</market>`).join("") + `</odds>` : "") + `</sport_event>`).join("") + `</odds_change_list>`;
+  if (kind === "markets")
+    return head + `<market_descriptions generated_at="${ts()}">` + data.map((m) =>
+      `<market${attrs({ id: m.market, uof_id: m.uof_id, name: m.name, group: m.group, specifiers: m.specifiers.join("|") || null })}>` +
+      m.outcomes.map((o: any) => `<outcome${attrs({ id: o.id, name: o.name })}/>`).join("") + `</market>`).join("") + `</market_descriptions>`;
   if (kind === "outrights")
     return head + `<outrights generated_at="${ts()}">` + data.map((o) =>
       `<outright${attrs({ id: o.id, tournament_id: o.tournament_id, name: o.name, scheduled: o.scheduled, status: o.status })}>` +
@@ -277,4 +317,4 @@ export function trackMeta(sb: SupabaseClient, c: Client, endpoint: string, hit: 
 }
 
 export const clientScopeKey = (c: Client) =>
-  `${c.id}|${c.markup_pct}|${c.sport_ids.join(",")}|${c.tournament_ids.join(",")}`;
+  `${c.id}|${c.markup_pct}|${c.sport_ids.join(",")}|${c.tournament_ids.join(",")}|${(c.market_groups ?? []).join(",")}`;
