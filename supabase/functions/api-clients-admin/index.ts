@@ -22,6 +22,7 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("delete"), id: Id }),
   z.object({ action: z.literal("assign"), id: Id, owner_id: Id.nullable() }),
   z.object({ action: z.literal("users") }),
+  z.object({ action: z.literal("set_exclusions"), id: Id, admin_ids: z.array(Id).max(500) }),
   z.object({
     action: z.literal("create_key"),
     client_id: Id,
@@ -62,19 +63,20 @@ Deno.serve(async (req) => {
     const p = Body.safeParse(await req.json());
     if (!p.success) return json({ error: p.error.flatten().fieldErrors }, 400);
     const forbidden = () => json({ error: "Forbidden" }, 403);
-    const ownsClient = async (id: string) => {
-      if (isAdmin) return true;
-      const { data } = await sb.from("api_clients").select("owner_id").eq("id", id).maybeSingle();
-      return !!data && data.owner_id === me;
-    };
+    const { data: isSuper } = await sb.rpc("has_role", { _user_id: me, _role: "super_admin" });
+    const ownsClient = async (id: string) =>
+      !!(await sb.rpc("can_see_api_client", { _user: me, _client: id })).data;
     const ownsKey = async (keyId: string) => {
       const { data } = await sb.from("api_keys").select("client_id").eq("id", keyId).maybeSingle();
       return !!data && (await ownsClient(data.client_id));
     };
     const a0 = p.data;
-    if (!isAdmin) {
-      if (["delete", "assign", "users"].includes(a0.action)) return forbidden();
-      if (a0.action === "save" && (!a0.id || !(await ownsClient(a0.id)))) return forbidden();
+    if (a0.action === "set_exclusions" && !isSuper) return forbidden();
+    if (!isAdmin && ["delete", "assign", "users"].includes(a0.action)) return forbidden();
+    if (!isAdmin && a0.action === "save" && !a0.id) return forbidden();
+    {
+      if ((a0.action === "delete" || a0.action === "assign") && !(await ownsClient(a0.id))) return forbidden();
+      if (a0.action === "save" && a0.id && !(await ownsClient(a0.id))) return forbidden();
       if (a0.action === "create_key" && !(await ownsClient(a0.client_id))) return forbidden();
       if ((a0.action === "rotate_key" || a0.action === "toggle_key" || a0.action === "delete_key") && !(await ownsKey(a0.key_id)))
         return forbidden();
@@ -88,14 +90,20 @@ Deno.serve(async (req) => {
     switch (b.action) {
       case "list": {
         const since = new Date(Date.now() - 86400000).toISOString();
-        let cq = sb.from("api_clients").select("*").order("created_at");
-        if (!isAdmin) cq = cq.eq("owner_id", me);
-        const [c, k, u, pr] = await Promise.all([
-          cq,
+        const [c0, k, u, pr, ex] = await Promise.all([
+          sb.from("api_clients").select("*").order("created_at"),
           sb.from("api_keys").select("id,client_id,kind,prefix,active,last_used_at,created_at,expires_at,allowed_ips,label,rotated_from").order("created_at"),
           sb.from("api_usage").select("client_id,count").gte("minute", since),
           sb.from("profiles").select("id,username"),
+          sb.from("api_client_exclusions").select("client_id,admin_id"),
         ]);
+        const exRows = ex.data ?? [];
+        const c = {
+          data: (c0.data ?? []).filter((x) =>
+            isSuper ? true
+            : isAdmin ? !exRows.some((e) => e.client_id === x.id && e.admin_id === me)
+            : x.owner_id === me),
+        };
         const names: Record<string, string> = {};
         for (const r of pr.data ?? []) names[r.id] = r.username ?? "";
         const usage: Record<string, number> = {};
@@ -106,13 +114,36 @@ Deno.serve(async (req) => {
             keys: (k.data ?? []).filter((y) => y.client_id === x.id),
             calls_24h: usage[x.id] ?? 0,
             owner_name: x.owner_id ? names[x.owner_id] ?? null : null,
+            ...(isSuper ? { excluded_admins: exRows.filter((e) => e.client_id === x.id).map((e) => e.admin_id) } : {}),
           })),
           is_admin: !!isAdmin,
+          is_super: !!isSuper,
         });
       }
       case "users": {
-        const { data } = await sb.from("profiles").select("id,username").order("username");
-        return json({ users: data ?? [] });
+        const [{ data }, { data: rr }] = await Promise.all([
+          sb.from("profiles").select("id,username").order("username"),
+          sb.from("user_roles").select("user_id,role"),
+        ]);
+        return json({
+          users: (data ?? []).map((u) => {
+            const rs = (rr ?? []).filter((x) => x.user_id === u.id).map((x) => x.role);
+            return { ...u, role: rs.includes("super_admin") ? "super_admin" : rs[0] ?? "viewer" };
+          }),
+        });
+      }
+      case "set_exclusions": {
+        const { data: admins } = await sb.from("user_roles").select("user_id").eq("role", "admin").in("user_id", b.admin_ids.length ? b.admin_ids : ["00000000-0000-0000-0000-000000000000"]);
+        const { data: supers } = await sb.from("user_roles").select("user_id").eq("role", "super_admin");
+        const superIds = new Set((supers ?? []).map((x) => x.user_id));
+        const ids = (admins ?? []).map((x) => x.user_id).filter((x) => !superIds.has(x));
+        await sb.from("api_client_exclusions").delete().eq("client_id", b.id);
+        if (ids.length) {
+          const { error } = await sb.from("api_client_exclusions").insert(ids.map((admin_id) => ({ client_id: b.id, admin_id })));
+          if (error) return json({ error: error.message }, 400);
+        }
+        await audit("api_client.exclusions", b.id, { admin_ids: ids });
+        return json({ ok: true });
       }
       case "assign": {
         if (b.owner_id) {
