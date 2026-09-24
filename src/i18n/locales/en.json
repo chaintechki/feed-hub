@@ -335,5 +335,13 @@
     "scheduled": "Scheduled",
     "competitors": "Competitors",
     "addCompetitor": "Add competitor"
+  },
+  "version": {
+    "title": "New version available",
+    "body": "A newer version of the Feed Panel is available. Please reload the page to use it.",
+    "installed": "Your version",
+    "available": "New version",
+    "reload": "Reload now",
+    "later": "Later"
   }
 }

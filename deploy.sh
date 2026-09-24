@@ -21,6 +21,12 @@ else
   npm install
 fi
 
+if [ "${NO_BUMP:-0}" != "1" ]; then
+  echo "==> Bumping patch version"
+  npm version patch --no-git-tag-version >/dev/null
+  echo "    Version: $(node -p "require('./package.json').version")"
+fi
+
 echo "==> Building production bundle"
 npm run build
 
@@ -49,3 +55,6 @@ find "$TARGET" -type f -exec chmod 644 {} +
 echo "==> Done. Release live in $TARGET"
 echo "    Remember: the web server needs an SPA fallback, e.g. for nginx"
 echo "    location / { try_files \$uri \$uri/ /index.html; }"
+echo "    and no caching for update-critical files, e.g. for nginx:"
+echo "    location ~ ^/(index\\.html|sw\\.js|version\\.json)\$ { add_header Cache-Control \"no-cache, no-store, must-revalidate\"; }"
+echo "    Apache (.htaccess): <FilesMatch \"^(index\\.html|sw\\.js|version\\.json)\$\"> Header set Cache-Control \"no-cache\" </FilesMatch>"
