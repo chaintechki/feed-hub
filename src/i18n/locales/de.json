@@ -74,7 +74,12 @@
     "search": "Suche"
   },
   "users": {
-    "roles": { "super_admin": "Super-Admin", "admin": "Admin", "trader": "Trader", "viewer": "Viewer" },
+    "roles": {
+      "super_admin": "Super-Admin",
+      "admin": "Admin",
+      "trader": "Trader",
+      "viewer": "Viewer"
+    },
     "title": "Benutzer",
     "create": "Benutzer anlegen",
     "role": "Rolle",
@@ -381,5 +386,15 @@
     "usernameLocked": "Der Benutzername kann nur von einem Admin geändert werden.",
     "forbidden": "Keine Berechtigung für diese Aktion.",
     "generic": "Unbekannter Fehler."
+  },
+  "feed": {
+    "title": "Feed-Status",
+    "live": "Live-Quoten",
+    "prematch": "Pre-Match",
+    "degraded": "Feed unterbrochen",
+    "noData": "Noch keine Feed-Nachrichten – läuft der Feed-Dienst?",
+    "syncNow": "Jetzt synchronisieren",
+    "synced": "Synchronisiert: {{count}} Spiele",
+    "syncFailed": "Synchronisierung fehlgeschlagen"
   }
 }

@@ -74,7 +74,12 @@
     "search": "Search"
   },
   "users": {
-    "roles": { "super_admin": "Super admin", "admin": "Admin", "trader": "Trader", "viewer": "Viewer" },
+    "roles": {
+      "super_admin": "Super admin",
+      "admin": "Admin",
+      "trader": "Trader",
+      "viewer": "Viewer"
+    },
     "title": "Users",
     "create": "Create user",
     "role": "Role",
@@ -381,5 +386,15 @@
     "usernameLocked": "The username can only be changed by an admin.",
     "forbidden": "You are not allowed to do this.",
     "generic": "Unknown error."
+  },
+  "feed": {
+    "title": "Feed status",
+    "live": "Live odds",
+    "prematch": "Pre-match",
+    "degraded": "Feed interrupted",
+    "noData": "No feed messages yet – is the feed worker running?",
+    "syncNow": "Sync now",
+    "synced": "Synchronised: {{count}} matches",
+    "syncFailed": "Synchronisation failed"
   }
 }
