@@ -72,7 +72,7 @@ export function TopBar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
-              {user?.email}
+              {user?.email?.split("@")[0]}
               <div className="mt-1 uppercase tracking-wide">{roles.join(", ") || "viewer"}</div>
             </div>
             <DropdownMenuSeparator />

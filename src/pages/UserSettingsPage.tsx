@@ -70,7 +70,7 @@ export default function UserSettingsPage() {
   });
 
   return (
-    <PageShell title="User settings" description={user?.email ?? ""}>
+    <PageShell title="User settings" description={user?.email?.split("@")[0] ?? ""}>
       <div className="max-w-md space-y-5">
         <div className="space-y-1.5">
           <Label className="text-[11px] uppercase text-muted-foreground">Odds format</Label>
