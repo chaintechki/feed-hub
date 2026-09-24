@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     if (product) {
       const cur = producers.get(product) ?? { id: product, name: PRODUCERS[product] ?? `P${product}` };
       cur.last_message_at = ts(mm.timestamp);
-      if (kind === "alive") { cur.last_alive_at = ts(mm.timestamp); if (mm.subscribed === "0") cur.down = true; }
+      if (kind === "alive") { cur.last_alive_at = ts(mm.timestamp); cur.down = mm.subscribed === "0"; }
       if (kind === "snapshot_complete") cur.down = false;
       producers.set(product, cur);
     }

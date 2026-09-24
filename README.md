@@ -55,3 +55,12 @@ proxy under the own domain) and requests/renews the Let's Encrypt certificate.
 
 New accounts receive the `trader` role; roles are stored in a dedicated table
 and enforced by database policies, never in the browser.
+
+## Odds feed worker
+
+Live odds arrive over a permanent message connection, which runs as the systemd service `feed-worker` on the web server (installed by `deploy.sh`).
+
+- Credentials: `/etc/feed-panel/uof.env` (asked once on the first interactive `sudo ./deploy.sh`, mode 640, owner root:feedworker).
+- Logs: `journalctl -u feed-worker -f`
+- The worker forwards signed message batches to the backend, refreshes the schedule every 10 minutes and requests recovery automatically after interruptions.
+- Status in the panel: the indicator in the top bar (live / pre-match), admins can trigger a manual sync there.

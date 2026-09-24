@@ -1,9 +1,9 @@
-import { motion } from "framer-motion";
 import { Bell, ChevronDown, Settings2, User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import { Logo } from "@/components/brand/Logo";
+import { FeedStatus } from "@/components/layout/FeedStatus";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,14 +38,7 @@ export function TopBar() {
       </div>
 
       <div className="ml-auto flex items-center">
-        <span className="flex items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-wide">
-          <motion.span
-            className="h-2 w-2 rounded-full bg-success"
-            animate={{ opacity: [1, 0.35, 1] }}
-            transition={{ duration: 2.4, repeat: Infinity }}
-          />
-          {t("nav.operational")}
-        </span>
+        <FeedStatus />
         <Link to="/configuration">
           <TopItem>
             <Settings2 className="h-3.5 w-3.5" /> {t("nav.configuration")}
