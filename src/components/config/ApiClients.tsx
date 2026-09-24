@@ -174,6 +174,78 @@ export function ApiClients() {
         </div>
       </div>
 
+      {stats.data && (
+        <div className="rounded-sm border border-border bg-panel">
+          <div className="border-b border-border bg-panel-header px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+            {t("usage.title")}
+          </div>
+          <div className="grid grid-cols-3 gap-px bg-border text-center text-[11px]">
+            <div className="bg-panel px-3 py-2">
+              <div className="text-lg font-bold text-success">{usage.totalToday}</div>
+              <div className="text-muted-foreground">{t("usage.allowedToday")}</div>
+            </div>
+            <div className="bg-panel px-3 py-2">
+              <div className="text-lg font-bold">{usage.total7d}</div>
+              <div className="text-muted-foreground">{t("usage.allowed7d")}</div>
+            </div>
+            <div className="bg-panel px-3 py-2">
+              <div className="text-lg font-bold text-danger">{usage.deniedToday}</div>
+              <div className="text-muted-foreground">{t("usage.deniedToday")}</div>
+            </div>
+          </div>
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground">
+                <th className="px-3 py-1.5 text-left font-semibold uppercase">{t("api.title")}</th>
+                <th className="px-3 py-1.5 text-right font-semibold uppercase">{t("usage.today")}</th>
+                <th className="px-3 py-1.5 text-right font-semibold uppercase">{t("usage.d7")}</th>
+                <th className="px-3 py-1.5 text-right font-semibold uppercase">{t("usage.d30")}</th>
+                <th className="px-3 py-1.5 text-right font-semibold uppercase">{t("usage.denied")}</th>
+                <th className="px-3 py-1.5 text-left font-semibold uppercase">{t("usage.endpoints")}</th>
+                <th className="px-3 py-1.5 text-right font-semibold uppercase">{t("usage.lastActive")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(list.data ?? []).map((c) => {
+                const e = usage.per.get(c.id);
+                const last = c.keys.map((k) => k.last_used_at).filter(Boolean).sort().at(-1);
+                const bd = Object.entries(e?.breakdown ?? {}).map(([k, v]) => `${k} ${v}`).join(" · ") || "—";
+                return (
+                  <tr key={c.id} className="border-b border-border last:border-0">
+                    <td className="px-3 py-1.5 font-semibold">{c.name}</td>
+                    <td className="px-3 py-1.5 text-right font-mono">{e?.today ?? 0}</td>
+                    <td className="px-3 py-1.5 text-right font-mono">{e?.d7 ?? 0}</td>
+                    <td className="px-3 py-1.5 text-right font-mono">{e?.d30 ?? 0}</td>
+                    <td className={"px-3 py-1.5 text-right font-mono" + (e?.denied ? " text-danger" : "")}>{e?.denied ?? 0}</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">{bd}</td>
+                    <td className="px-3 py-1.5 text-right text-muted-foreground">{last ? new Date(last).toLocaleString() : "—"}</td>
+                  </tr>
+                );
+              })}
+              {usage.unknown.map(([hint, n]) => (
+                <tr key={hint || "none"} className="border-b border-border last:border-0">
+                  <td className="px-3 py-1.5 font-semibold text-danger">
+                    {t("usage.reason.invalid_key")}
+                    {hint ? ` (${hint}…)` : ""}
+                  </td>
+                  <td className="px-3 py-1.5 text-right font-mono text-danger">—</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-danger">—</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-danger">—</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-danger">{n}</td>
+                  <td className="px-3 py-1.5 text-muted-foreground">—</td>
+                  <td className="px-3 py-1.5 text-right text-muted-foreground">—</td>
+                </tr>
+              ))}
+              {(list.data ?? []).length === 0 && usage.unknown.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-3 py-2 text-muted-foreground">{t("usage.noActivity")}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <div className="space-y-2">
         {list.isLoading && <p className="text-[11px] text-muted-foreground">{t("common.loading")}</p>}
         {list.data?.length === 0 && <p className="text-[11px] text-muted-foreground">{t("api.none")}</p>}
