@@ -137,10 +137,21 @@ export function SportTree({
                   selected ? "bg-row-hover text-primary" : "hover:bg-row-hover",
                 )}
               >
-                <button onClick={() => setOpenSports(toggle(openSports, sport.id))} className="flex flex-1 items-center gap-1 text-left">
+                <button
+                  onClick={() => setOpenSports(toggle(openSports, sport.id))}
+                  aria-label={`${sport.name} expandieren`}
+                  className="text-muted-foreground hover:text-foreground"
+                >
                   <ChevronDown
                     className={cn("h-3.5 w-3.5 shrink-0 transition-transform", !open && "-rotate-90")}
                   />
+                </button>
+                <button
+                  onClick={() =>
+                    onSelectionChange({ ...selection, sportIds: toggle(selection.sportIds, sport.id) })
+                  }
+                  className="flex flex-1 cursor-pointer items-center text-left"
+                >
                   <span className="truncate">
                     {sport.name} ({sport.matchCount})
                   </span>
@@ -180,11 +191,22 @@ export function SportTree({
                           >
                             <button
                               onClick={() => setOpenCats(toggle(openCats, cat.id))}
-                              className="flex flex-1 items-center gap-1 text-left uppercase"
+                              aria-label={`${cat.name} expandieren`}
+                              className="text-muted-foreground hover:text-foreground"
                             >
                               <ChevronDown
                                 className={cn("h-3 w-3 shrink-0 transition-transform", !catOpen && "-rotate-90")}
                               />
+                            </button>
+                            <button
+                              onClick={() =>
+                                onSelectionChange({
+                                  ...selection,
+                                  categoryIds: toggle(selection.categoryIds, cat.id),
+                                })
+                              }
+                              className="flex flex-1 cursor-pointer items-center text-left uppercase"
+                            >
                               <span className="truncate">
                                 {cat.name} ({cat.matchCount})
                               </span>
@@ -213,9 +235,19 @@ export function SportTree({
                                       : "hover:bg-row-hover",
                                   )}
                                 >
-                                  <span className="flex-1 truncate">
-                                    {tour.name} ({tour.matchCount})
-                                  </span>
+                                  <button
+                                    onClick={() =>
+                                      onSelectionChange({
+                                        ...selection,
+                                        tournamentIds: toggle(selection.tournamentIds, tour.id),
+                                      })
+                                    }
+                                    className="flex flex-1 cursor-pointer items-center text-left"
+                                  >
+                                    <span className="truncate">
+                                      {tour.name} ({tour.matchCount})
+                                    </span>
+                                  </button>
                                   <Counter value={tour.alerts} tone="alert" />
                                   <input
                                     type="checkbox"
