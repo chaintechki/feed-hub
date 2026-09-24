@@ -58,12 +58,11 @@ function MarketCells({ row, market, heat, matchId }: { row: OddsRow | undefined;
   const sus = row?.suspended;
   const isTwoWay = o.length === 2;
   const cells = isTwoWay ? [o[0], undefined, o[1]] : [o[0], o[1], o[2]];
-  const heatIndexes = isTwoWay ? [0, -1, 1] : [0, 1, 2];
   return (
     <>
-      <OddsCell outcome={cells[0]} tone="a" heat={heatIndexes[0] >= 0 ? h(heatIndexes[0]) : undefined} suspended={sus} />
-      <OddsCell outcome={cells[1]} tone="a" heat={heatIndexes[1] >= 0 ? h(heatIndexes[1]) : undefined} suspended={sus} />
-      <OddsCell outcome={cells[2]} tone="b" heat={heatIndexes[2] >= 0 ? h(heatIndexes[2]) : undefined} suspended={sus} />
+      <OddsCell outcome={cells[0]} tone="a" heat={h(0)} suspended={sus} />
+      <OddsCell outcome={cells[1]} tone="a" heat={isTwoWay ? undefined : h(1)} suspended={sus} />
+      <OddsCell outcome={cells[2]} tone="b" heat={h(isTwoWay ? 1 : 2)} suspended={sus} />
     </>
   );
 }

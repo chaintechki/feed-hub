@@ -137,7 +137,10 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
 
       const withUsableOdds = new Set(
         odds
-          .filter((o) => Array.isArray(o.outcomes) && o.outcomes.some((outcome) => typeof outcome?.odds === "number" && Number.isFinite(outcome.odds)))
+          .filter((o) => {
+            const outcomes = Array.isArray(o.outcomes) ? (o.outcomes as unknown as Outcome[]) : [];
+            return outcomes.some((outcome) => typeof outcome.odds === "number" && Number.isFinite(outcome.odds));
+          })
           .map((o) => o.match_id),
       );
       const sorted = [...rows].sort(
