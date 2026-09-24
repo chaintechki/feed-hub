@@ -473,6 +473,27 @@ export type Database = {
         }
         Relationships: []
       }
+      feed_options: {
+        Row: {
+          options: Json
+          scope: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          options?: Json
+          scope: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          options?: Json
+          scope?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       filter_presets: {
         Row: {
           created_at: string
@@ -788,28 +809,40 @@ export type Database = {
       outrights: {
         Row: {
           competitors: Json
+          created_by: string | null
+          custom: boolean
           id: string
           name: string
+          odds_key: number
           scheduled: string | null
           status: string
+          suspended: boolean
           tournament_id: string
           updated_at: string
         }
         Insert: {
           competitors?: Json
+          created_by?: string | null
+          custom?: boolean
           id: string
           name: string
+          odds_key?: number
           scheduled?: string | null
           status?: string
+          suspended?: boolean
           tournament_id: string
           updated_at?: string
         }
         Update: {
           competitors?: Json
+          created_by?: string | null
+          custom?: boolean
           id?: string
           name?: string
+          odds_key?: number
           scheduled?: string | null
           status?: string
+          suspended?: boolean
           tournament_id?: string
           updated_at?: string
         }

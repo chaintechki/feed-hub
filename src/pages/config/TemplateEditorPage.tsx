@@ -246,12 +246,12 @@ export default function TemplateEditorPage() {
               s.categories.map((c) => (
                 <div key={c.id} className="mb-1">
                   <label className="flex items-center gap-1.5 font-semibold">
-                    <Checkbox checked={assign?.cats.includes(c.id)} onCheckedChange={() => setAssign({ ...assign!, cats: toggle(assign!.cats, c.id) })} />
+                    <Checkbox checked={!!assign?.cats.includes(c.id)} onCheckedChange={() => setAssign({ ...assign!, cats: toggle(assign!.cats, c.id) })} />
                     {s.name} · {c.name}
                   </label>
                   {c.tournaments.map((tn) => (
                     <label key={tn.id} className="ml-5 flex items-center gap-1.5">
-                      <Checkbox checked={assign?.tours.includes(tn.id)} onCheckedChange={() => setAssign({ ...assign!, tours: toggle(assign!.tours, tn.id) })} />
+                      <Checkbox checked={!!assign?.tours.includes(tn.id)} onCheckedChange={() => setAssign({ ...assign!, tours: toggle(assign!.tours, tn.id) })} />
                       {tn.name}
                     </label>
                   ))}

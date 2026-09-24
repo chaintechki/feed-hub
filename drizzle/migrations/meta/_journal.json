@@ -64,6 +64,13 @@
       "when": 1790217300194,
       "tag": "0008_bookmaker_lists",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790217424826,
+      "tag": "0009_feed_options_outrights",
+      "breakpoints": true
     }
   ]
 }
