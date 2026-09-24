@@ -178,18 +178,24 @@ export type Database = {
       }
       api_usage: {
         Row: {
+          bytes: number
+          cache_hits: number
           client_id: string
           count: number
           endpoint: string
           minute: string
         }
         Insert: {
+          bytes?: number
+          cache_hits?: number
           client_id: string
           count?: number
           endpoint: string
           minute: string
         }
         Update: {
+          bytes?: number
+          cache_hits?: number
           client_id?: string
           count?: number
           endpoint?: string
@@ -263,6 +269,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cost_settings: {
+        Row: {
+          currency: string
+          fixed_monthly: number
+          id: number
+          included_egress_gb: number
+          included_invocations: number
+          price_per_gb_egress: number
+          price_per_million_db_reads: number
+          price_per_million_invocations: number
+          updated_at: string
+          updated_by: string | null
+          upstream_monthly: number
+        }
+        Insert: {
+          currency?: string
+          fixed_monthly?: number
+          id?: number
+          included_egress_gb?: number
+          included_invocations?: number
+          price_per_gb_egress?: number
+          price_per_million_db_reads?: number
+          price_per_million_invocations?: number
+          updated_at?: string
+          updated_by?: string | null
+          upstream_monthly?: number
+        }
+        Update: {
+          currency?: string
+          fixed_monthly?: number
+          id?: number
+          included_egress_gb?: number
+          included_invocations?: number
+          price_per_gb_egress?: number
+          price_per_million_db_reads?: number
+          price_per_million_invocations?: number
+          updated_at?: string
+          updated_by?: string | null
+          upstream_monthly?: number
+        }
+        Relationships: []
       }
       filter_presets: {
         Row: {
@@ -719,6 +767,15 @@ export type Database = {
           _endpoint: string
           _key_hint: string
           _reason: string
+        }
+        Returns: undefined
+      }
+      api_track_meta: {
+        Args: {
+          _bytes: number
+          _cache_hit: boolean
+          _client: string
+          _endpoint: string
         }
         Returns: undefined
       }
