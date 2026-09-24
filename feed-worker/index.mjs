@@ -80,20 +80,28 @@ setInterval(flush, 1000);
 
 // ---------- producers / recovery ----------
 const producers = {}; // id -> { lastAlive, lastOk, down }
-async function recover(id) {
+const lastFull = {}; // id -> timestamp of last full snapshot request
+async function recover(id, full = false) {
   const name = PRODUCT_URL[id];
   if (!name) return;
-  const p = producers[id];
+  const p = producers[id] ?? {};
   const maxBack = Date.now() - 70 * 3600_000;
-  const after = Math.max(p.lastOk ?? maxBack, maxBack);
-  const url = `https://${C.apiHost}/v1/${name}/recovery/initiate_request?after=${after}&node_id=${C.nodeId}&request_id=${Date.now() % 1e9}`;
+  // Full snapshot (no "after") on first start or when the gap exceeds the provider's 70 h window.
+  const useFull = full || !lastFull[id] || !p.lastOk || p.lastOk < maxBack;
+  const after = useFull ? null : p.lastOk;
+  const url = `https://${C.apiHost}/v1/${name}/recovery/initiate_request?${after ? `after=${after}&` : ""}node_id=${C.nodeId}&request_id=${Date.now() % 1e9}`;
   try {
     const r = await fetch(url, { method: "POST", headers: { "x-access-token": C.token } });
-    log(`recovery ${name} after=${new Date(after).toISOString()} -> ${r.status}`);
+    if (useFull && r.ok) lastFull[id] = Date.now();
+    log(`recovery ${name} ${useFull ? "full snapshot" : `after=${new Date(after).toISOString()}`} -> ${r.status}`);
   } catch (e) {
     log("recovery failed", e.message);
   }
 }
+// Periodic full snapshot every 6 h so newly offered matches always get complete odds.
+setInterval(() => {
+  for (const id of Object.keys(producers)) recover(Number(id), true);
+}, 6 * 3600_000);
 setInterval(() => {
   for (const [id, p] of Object.entries(producers)) {
     if (!p.down && Date.now() - p.lastAlive > 20_000) {
