@@ -11,6 +11,11 @@ export type OddsRow = {
   specifier: string | null;
   outcomes: Outcome[];
   margin: number | null;
+  suspended?: boolean;
+  controlMode?: string;
+  group?: string;
+  alerted?: boolean;
+  updatedAt?: string;
 };
 
 export type MatchRow = {
@@ -36,6 +41,10 @@ export type MatchRow = {
   earlyOdds: boolean;
   providerOnly: boolean;
   odds: OddsRow[];
+  marginSkewed: boolean;
+  alertScore: number;
+  logCount: number;
+  heat: Record<string, import("./heat").Heat>;
 };
 
 export type TreeTournament = { id: string; name: string; matchCount: number; alerts: number };

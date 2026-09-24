@@ -129,5 +129,58 @@
       "not_found": "Match not found",
       "unknown:fp": "Unknown key"
     }
+  },
+  "mu": {
+    "alertScore": "Alert score",
+    "noAlerts": "No alerts for this match.",
+    "ack": "Acknowledge",
+    "criticalMarkets": "Critical markets",
+    "ownVsAvg": "Own odds / market average",
+    "comments": "Comments",
+    "log": "Log",
+    "you": "you",
+    "noComments": "No comments yet.",
+    "noLog": "No entries yet.",
+    "commentPh": "Comment visible to all users…",
+    "h2h": "Head-to-Head",
+    "draws": "Draws",
+    "demoStats": "Sample statistics – real data once the stats feed is connected.",
+    "open": "Open Match Up",
+    "copyId": "Copy match ID",
+    "copied": "Copied",
+    "regenerate": "Regenerate alerts",
+    "regenerated": "Alerts regenerated, score",
+    "marginSkewed": "Margin skewed",
+    "searchMarket": "Search market",
+    "market": "Market",
+    "outcomes": "Outcomes",
+    "key": "Key",
+    "mode": "Mode",
+    "suspended": "Suspended",
+    "active": "Active",
+    "noMarkets": "No markets for this selection.",
+    "group": {
+      "all": "All",
+      "main": "Main",
+      "goals": "Goals",
+      "handicap": "Handicap",
+      "halves": "Halves",
+      "score": "Score"
+    },
+    "quick": {
+      "alerted": "Alerted",
+      "semi_auto": "Semi auto",
+      "manual": "Manual"
+    }
+  },
+  "mk": {
+    "1x2": "1X2",
+    "total": "Total",
+    "handicap": "Handicap",
+    "double_chance": "Double chance",
+    "btts": "Both teams score",
+    "ht_1x2": "1st half 1X2",
+    "ht_total": "1st half total",
+    "correct_score": "Correct score"
   }
 }

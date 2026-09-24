@@ -64,6 +64,9 @@
   --color-odds-neutral: hsl(var(--odds-neutral));
   --color-odds-up: hsl(var(--odds-up));
   --color-odds-down: hsl(var(--odds-down));
+  --color-odds-heat: hsl(var(--odds-heat));
+  --color-odds-cool: hsl(var(--odds-cool));
+  --color-odds-suspended: hsl(var(--odds-suspended));
 
   --color-chart-1: hsl(var(--chart-1));
   --color-chart-2: hsl(var(--chart-2));
@@ -133,6 +136,9 @@
   --odds-neutral: 210 20% 95%;
   --odds-up: 152 62% 42%;
   --odds-down: 356 70% 50%;
+  --odds-heat: 330 80% 72%;
+  --odds-cool: 205 85% 62%;
+  --odds-suspended: 210 8% 78%;
 
   --chart-1: 210 69% 40%;
   --chart-2: 152 62% 42%;
@@ -179,6 +185,9 @@
   --odds-a: 354 34% 24%;
   --odds-b: 212 40% 24%;
   --odds-neutral: 213 20% 20%;
+  --odds-heat: 330 60% 45%;
+  --odds-cool: 205 70% 45%;
+  --odds-suspended: 213 10% 35%;
 }
 
 @layer base {

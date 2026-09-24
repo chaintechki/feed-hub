@@ -129,5 +129,58 @@
       "not_found": "Spiel nicht gefunden",
       "unknown:fp": "Unbekannter Schlüssel"
     }
+  },
+  "mu": {
+    "alertScore": "Alert-Score",
+    "noAlerts": "Keine Alerts für dieses Spiel.",
+    "ack": "Bestätigen",
+    "criticalMarkets": "Kritische Märkte",
+    "ownVsAvg": "Eigene Quote / Marktdurchschnitt",
+    "comments": "Kommentare",
+    "log": "Protokoll",
+    "you": "Sie",
+    "noComments": "Noch keine Kommentare.",
+    "noLog": "Noch keine Einträge.",
+    "commentPh": "Kommentar für alle Benutzer…",
+    "h2h": "Head-to-Head",
+    "draws": "Unentschieden",
+    "demoStats": "Beispielstatistik – echte Daten nach Anbindung des Statistik-Feeds.",
+    "open": "Match-Up öffnen",
+    "copyId": "Match-ID kopieren",
+    "copied": "Kopiert",
+    "regenerate": "Alerts neu erzeugen",
+    "regenerated": "Alerts neu berechnet, Score",
+    "marginSkewed": "Marge verschoben",
+    "searchMarket": "Markt suchen",
+    "market": "Markt",
+    "outcomes": "Ausgänge",
+    "key": "Key",
+    "mode": "Modus",
+    "suspended": "Gesperrt",
+    "active": "Aktiv",
+    "noMarkets": "Keine Märkte für diese Auswahl.",
+    "group": {
+      "all": "Alle",
+      "main": "Main",
+      "goals": "Tore",
+      "handicap": "Handicap",
+      "halves": "Halbzeiten",
+      "score": "Ergebnis"
+    },
+    "quick": {
+      "alerted": "Alerted",
+      "semi_auto": "Semi Auto",
+      "manual": "Manual"
+    }
+  },
+  "mk": {
+    "1x2": "1X2",
+    "total": "Total",
+    "handicap": "Handicap",
+    "double_chance": "Doppelte Chance",
+    "btts": "Beide treffen",
+    "ht_1x2": "1. HZ 1X2",
+    "ht_total": "1. HZ Total",
+    "correct_score": "Genaues Ergebnis"
   }
 }

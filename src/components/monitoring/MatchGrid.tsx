@@ -1,6 +1,14 @@
-import { CalendarDays, Clock, MessageSquare, MoreVertical, Radio, Star } from "lucide-react";
-import { Fragment, useMemo } from "react";
+import { CalendarDays, Clock, MessageSquare, MoreVertical, Radio, Scale, Star } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { AlertScoreDialog, CommentsDialog, H2HDialog, regenerateAlerts } from "@/components/monitoring/MatchDialogs";
+import { useComparisons } from "@/lib/feed/bookmakers";
+import { heatKey, heatStyle, type Heat } from "@/lib/feed/heat";
+import type { Comparison } from "@/lib/feed/normalize";
 
 import {
   DropdownMenu,
@@ -12,55 +20,72 @@ import { formatOdds, useOddsFormat } from "@/hooks/useOddsFormat";
 import type { MatchRow, OddsRow } from "@/lib/feed/types";
 import { cn } from "@/lib/utils";
 
-function OddsCell({
+export function OddsCell({
   outcome,
   tone,
+  heat,
+  suspended,
 }: {
-  outcome: { label: string; odds: number | null; trend?: "up" | "down" | null } | undefined;
+  outcome: { label: string; odds: number | null } | undefined;
   tone: "a" | "b" | "neutral";
+  heat?: Heat | undefined;
+  suspended?: boolean | undefined;
 }) {
   const { format } = useOddsFormat();
   if (!outcome) return <div className="grid-cell bg-odds-neutral text-muted-foreground">—</div>;
+  const style = tone === "neutral" ? undefined : heatStyle(heat, !!suspended);
   return (
     <div
+      style={style}
+      title={heat ? `${heat.dir === "heat" ? "▲" : "▼"} ${new Date(heat.at).toLocaleTimeString()}` : undefined}
       className={cn(
         "grid-cell relative",
-        tone === "a" && "bg-odds-a",
-        tone === "b" && "bg-odds-b",
+        !style && tone !== "neutral" && "bg-odds-neutral",
         tone === "neutral" && "bg-odds-neutral text-muted-foreground font-medium italic",
+        suspended && "text-muted-foreground",
       )}
     >
       {tone === "neutral" ? outcome.label : formatOdds(outcome.odds, format)}
-      {outcome.trend ? (
-        <span
-          className={cn(
-            "absolute inset-x-1 bottom-0 h-[2px] rounded-full",
-            outcome.trend === "up" ? "bg-odds-up" : "bg-odds-down",
-          )}
-        />
-      ) : null}
     </div>
   );
 }
 
-function MarketCells({ row, market }: { row: OddsRow | undefined; market: "1x2" | "total" | "handicap" }) {
+function MarketCells({ row, market, heat, matchId }: { row: OddsRow | undefined; market: "1x2" | "total" | "handicap"; heat: Record<string, Heat>; matchId: string }) {
   const o = row?.outcomes ?? [];
-  if (market === "1x2") {
-    return (
-      <>
-        <OddsCell outcome={o[0]} tone="a" />
-        <OddsCell outcome={o[1]} tone="a" />
-        <OddsCell outcome={o[2]} tone="b" />
-      </>
-    );
-  }
+  const h = (i: number) => (row && o[i] && row.source === "own" ? heat[heatKey(matchId, row.market, row.specifier, o[i]!.label)] : undefined);
+  const sus = row?.suspended;
+  const mid = market === "1x2" ? "a" : "neutral";
   return (
     <>
-      <OddsCell outcome={o[0]} tone="a" />
-      <OddsCell outcome={o[1]} tone="neutral" />
-      <OddsCell outcome={o[2]} tone="b" />
+      <OddsCell outcome={o[0]} tone="a" heat={h(0)} suspended={sus} />
+      <OddsCell outcome={o[1]} tone={mid} heat={h(1)} suspended={sus} />
+      <OddsCell outcome={o[2]} tone="b" heat={h(2)} suspended={sus} />
     </>
   );
+}
+
+/** Headline line = most balanced one (smallest gap between first and last outcome). */
+function mainLine(rows: OddsRow[]) {
+  const gap = (r: OddsRow) => Math.abs((r.outcomes[0]?.odds ?? 99) - (r.outcomes[r.outcomes.length - 1]?.odds ?? 0));
+  return [...rows].sort((a, b) => gap(a) - gap(b))[0];
+}
+
+export function StrengthBar({ value }: { value: number }) {
+  return (
+    <span className="absolute inset-x-2 bottom-[1px] h-[2px] rounded-full bg-muted" title={`Strength ${Math.round(value * 100)}%`}>
+      <span
+        className={cn("block h-full rounded-full", value >= 0.66 ? "bg-success" : value >= 0.33 ? "bg-warning" : "bg-danger")}
+        style={{ width: `${Math.max(8, value * 100)}%` }}
+      />
+    </span>
+  );
+}
+
+/** Average row: replace provider average with the normalised bookmaker-list average when available. */
+function withNorm(row: OddsRow | undefined, cmp: Comparison | undefined): OddsRow | undefined {
+  if (!row || !cmp) return row;
+  let k = 0;
+  return { ...row, outcomes: row.outcomes.map((o) => (o.odds == null ? o : { ...o, odds: cmp.avg[k++] ?? o.odds })) };
 }
 
 function Margin({ value }: { value: number | null }) {
@@ -98,6 +123,13 @@ export function MatchGrid({
   onToggleHotlist?: (match: MatchRow) => void;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [alertFor, setAlertFor] = useState<MatchRow | null>(null);
+  const [commentsFor, setCommentsFor] = useState<MatchRow | null>(null);
+  const [h2hFor, setH2hFor] = useState<MatchRow | null>(null);
+  const cmps = useComparisons(matches);
+  const open = (m: MatchRow) => navigate(`/monitoring/match/${encodeURIComponent(m.id)}`);
 
   const groups = useMemo(() => {
     const map = new Map<string, { label: string; rows: MatchRow[] }>();
@@ -136,10 +168,11 @@ export function MatchGrid({
             </div>
 
             {group.rows.map((m) => {
-              const own = (market: OddsRow["market"]) =>
-                m.odds.find((o) => o.source === "own" && o.market === market);
-              const avg = (market: OddsRow["market"]) =>
-                m.odds.find((o) => o.source === "average" && o.market === market);
+              const own = (market: OddsRow["market"]) => mainLine(m.odds.filter((o) => o.source === "own" && o.market === market));
+              const avg = (market: OddsRow["market"]) => {
+                const o = own(market);
+                return m.odds.find((x) => x.source === "average" && x.market === market && x.specifier === (o?.specifier ?? x.specifier));
+              };
               const date = new Date(m.scheduled);
 
               return (
@@ -158,7 +191,7 @@ export function MatchGrid({
                           )}
                         />
                       </button>
-                      <span className="w-[120px] truncate text-[11px] font-semibold">{m.homeTeam}</span>
+                      <button onClick={() => open(m)} className="w-[120px] truncate text-left text-[11px] font-semibold hover:text-primary hover:underline">{m.homeTeam}</button>
                       <span className="flex flex-col items-center text-[10px] leading-tight text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <CalendarDays className="h-3 w-3" />
@@ -179,19 +212,34 @@ export function MatchGrid({
                           m.liveodds === "booked" ? "text-live" : "text-border",
                         )}
                       />
-                      <span className="w-[120px] truncate text-right text-[11px] font-semibold">
+                      <button onClick={() => open(m)} className="w-[120px] truncate text-right text-[11px] font-semibold hover:text-primary hover:underline">
                         {m.awayTeam}
-                      </span>
+                      </button>
                     </div>
 
                     <div className="mt-1 flex items-center gap-2">
                       <span className="flex h-[17px] min-w-[22px] items-center justify-center rounded-sm bg-muted px-1 text-[10px] font-bold">
                         {m.matchMinute ?? "—"}
                       </span>
-                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <button
+                        onClick={() => setAlertFor(m)}
+                        title={t("mu.alertScore")}
+                        className={cn(
+                          "flex h-[17px] min-w-[26px] items-center justify-center rounded-sm px-1 text-[10px] font-bold",
+                          m.alertScore >= 60 ? "bg-danger text-danger-foreground" : m.alertScore > 0 ? "bg-warning text-warning-foreground" : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {m.alertScore}
+                      </button>
+                      <button onClick={() => setCommentsFor(m)} className="flex items-center gap-1 text-[10px] text-primary hover:underline">
                         <MessageSquare className="h-3 w-3" />
-                        {m.commentCount}/0
-                      </span>
+                        {m.commentCount}/{m.logCount}
+                      </button>
+                      {m.marginSkewed && (
+                        <span title={t("mu.marginSkewed")} className="flex items-center text-warning">
+                          <Scale className="h-3.5 w-3.5" />
+                        </span>
+                      )}
                       <button
                         onClick={() => onToggleSuspend?.(m)}
                         className={cn(
@@ -211,9 +259,23 @@ export function MatchGrid({
                           <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>Open match details</DropdownMenuItem>
-                          <DropdownMenuItem>Add comment</DropdownMenuItem>
-                          <DropdownMenuItem>Copy match id</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => open(m)}>{t("mu.open")}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setH2hFor(m)}>{t("mu.h2h")}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate(`/settlements?match=${encodeURIComponent(m.id)}`)}>{t("nav.settlements")}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate(`/archive?match=${encodeURIComponent(m.id)}`)}>{t("nav.archive")}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => void navigator.clipboard.writeText(m.id).then(() => toast.success(t("mu.copied")))}>{t("mu.copyId")}</DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              regenerateAlerts(m)
+                                .then((score) => {
+                                  toast.success(`${t("mu.regenerated")}: ${score}`);
+                                  void qc.invalidateQueries({ queryKey: ["matches"] });
+                                })
+                                .catch((e: Error) => toast.error(e.message))
+                            }
+                          >
+                            {t("mu.regenerate")}
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -235,13 +297,20 @@ export function MatchGrid({
                       className={cn("grid grid-rows-2", index < 2 && "border-r border-border")}
                     >
                       <div className="grid grid-cols-[1fr_1fr_1fr_36px] items-center gap-1 border-b border-border px-2">
-                        <MarketCells row={own(market)} market={market} />
+                        <MarketCells row={own(market)} market={market} heat={m.heat} matchId={m.id} />
                         <Margin value={own(market)?.margin ?? null} />
                       </div>
-                      <div className="grid grid-cols-[1fr_1fr_1fr_36px] items-center gap-1 px-2">
-                        <MarketCells row={avg(market)} market={market} />
-                        <Margin value={avg(market)?.margin ?? null} />
-                      </div>
+                      {(() => {
+                        const o = own(market);
+                        const c = o ? cmps.get(`${m.id}|${o.market}|${o.specifier ?? ""}`) : undefined;
+                        return (
+                          <div className="relative grid grid-cols-[1fr_1fr_1fr_36px] items-center gap-1 px-2">
+                            <MarketCells row={withNorm(avg(market), c)} market={market} heat={m.heat} matchId={m.id} />
+                            <Margin value={c ? o?.margin ?? null : avg(market)?.margin ?? null} />
+                            {c && <StrengthBar value={c.strength} />}
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
@@ -250,6 +319,9 @@ export function MatchGrid({
           </Fragment>
         ))}
       </div>
+      <AlertScoreDialog match={alertFor} onClose={() => setAlertFor(null)} />
+      <CommentsDialog match={commentsFor} onClose={() => setCommentsFor(null)} />
+      <H2HDialog match={h2hFor} onClose={() => setH2hFor(null)} />
     </div>
   );
 }
