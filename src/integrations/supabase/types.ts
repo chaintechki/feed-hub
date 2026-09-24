@@ -935,6 +935,27 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_events: {
+        Row: {
+          at: string
+          bucket: string
+          id: number
+          user_id: string
+        }
+        Insert: {
+          at?: string
+          bucket: string
+          id?: never
+          user_id: string
+        }
+        Update: {
+          at?: string
+          bucket?: string
+          id?: never
+          user_id?: string
+        }
+        Relationships: []
+      }
       settlements: {
         Row: {
           created_at: string
