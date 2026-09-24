@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { DataTable, type Column } from "@/components/common/DataTable";
+import { UserManagement } from "@/components/config/UserManagement";
 import { PageShell } from "@/components/layout/PageShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
@@ -53,10 +54,14 @@ export default function ConfigurationPage() {
   return (
     <PageShell title="Configuration" description="Operators, roles and system activity">
       <div className="space-y-6">
-        <section className="space-y-2">
-          <h2 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Operators</h2>
-          <DataTable columns={profileColumns} rows={profiles.data ?? []} isLoading={profiles.isLoading} />
-        </section>
+        {isAdmin ? (
+          <UserManagement />
+        ) : (
+          <section className="space-y-2">
+            <h2 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Operators</h2>
+            <DataTable columns={profileColumns} rows={profiles.data ?? []} isLoading={profiles.isLoading} />
+          </section>
+        )}
 
         <section className="space-y-2">
           <h2 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Audit log</h2>

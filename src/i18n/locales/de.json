@@ -68,5 +68,21 @@
     "status": "Status",
     "actions": "Aktionen",
     "search": "Suche"
+  },
+  "users": {
+    "title": "Benutzer",
+    "create": "Benutzer anlegen",
+    "role": "Rolle",
+    "active": "Aktiv",
+    "banned": "Gesperrt",
+    "created": "Erstellt",
+    "lastLogin": "Letzte Anmeldung",
+    "resetPassword": "Passwort zurücksetzen",
+    "newPassword": "Neues Passwort",
+    "ban": "Sperren",
+    "unban": "Entsperren",
+    "delete": "Benutzer löschen",
+    "deleteConfirm": "Das Konto und seine Einstellungen werden dauerhaft entfernt.",
+    "saved": "Gespeichert."
   }
 }

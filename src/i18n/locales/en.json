@@ -68,5 +68,21 @@
     "status": "Status",
     "actions": "Actions",
     "search": "Search"
+  },
+  "users": {
+    "title": "Users",
+    "create": "Create user",
+    "role": "Role",
+    "active": "Active",
+    "banned": "Locked",
+    "created": "Created",
+    "lastLogin": "Last login",
+    "resetPassword": "Reset password",
+    "newPassword": "New password",
+    "ban": "Lock",
+    "unban": "Unlock",
+    "delete": "Delete user",
+    "deleteConfirm": "This permanently removes the account and its settings.",
+    "saved": "Saved."
   }
 }
