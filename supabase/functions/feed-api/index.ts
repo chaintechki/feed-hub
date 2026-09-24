@@ -5,6 +5,7 @@ import {
   clientScopeKey,
   db,
   errorBody,
+  getMarkets,
   getMatches,
   getOutrights,
   getResults,
@@ -19,6 +20,7 @@ import {
   etagMatches,
   type ErrorCode,
 } from "../_shared/feed.ts";
+import { MARKET_GROUPS } from "../_shared/markets.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -37,7 +39,7 @@ const fail = (code: ErrorCode, xml = false, extra: Record<string, string> = {}, 
   return send(e.body, e.status, e.type, extra);
 };
 
-const ENDPOINTS = "/me, /sports, /matches, /matches/{id}/odds, /outrights, /results, /openapi.json";
+const ENDPOINTS = "/me, /sports, /matches, /matches/{id}/odds, /outrights, /results, /markets, /openapi.json";
 const STATUSES = new Set(["not_started", "live", "ended", "closed"]);
 
 Deno.serve(async (req) => {
@@ -79,7 +81,7 @@ Deno.serve(async (req) => {
 
     const oddsMatch = path.match(/^\/matches\/([^/]+)\/odds$/);
     const kind =
-      path === "/me" ? "me" : path === "/sports" ? "sports" : path === "/matches" ? "matches" : oddsMatch ? "odds" : path === "/outrights" ? "outrights" : path === "/results" ? "results" : null;
+      path === "/me" ? "me" : path === "/sports" ? "sports" : path === "/matches" ? "matches" : oddsMatch ? "odds" : path === "/outrights" ? "outrights" : path === "/results" ? "results" : path === "/markets" ? "markets" : null;
     if (!kind) {
       await trackDenial(sb, client, apiKey, path, "unknown_endpoint");
       return fail("unknown_endpoint", xml, {}, `Use ${ENDPOINTS}`);
@@ -93,11 +95,16 @@ Deno.serve(async (req) => {
     const status = p.get("status") ?? undefined;
     const sport = p.get("sport") ?? undefined;
     const tournament = p.get("tournament") ?? undefined;
+    const groupsRaw = p.get("groups") ?? "";
+    const groups = groupsRaw ? groupsRaw.split(",").map((g) => g.trim()).filter(Boolean) : undefined;
+    const lang = (p.get("lang") ?? "en").toLowerCase();
     const bad =
       !Number.isInteger(limit) || limit < 1 || limit > 500 ? "limit must be 1-500."
       : !Number.isInteger(offset) || offset < 0 || offset > 100000 ? "offset must be >= 0."
       : since && Number.isNaN(Date.parse(since)) ? "since must be an ISO date-time."
       : status && !STATUSES.has(status) ? `status must be one of ${[...STATUSES].join(", ")}.`
+      : groups && (groups.length > 8 || groups.some((g) => !MARKET_GROUPS.includes(g as never))) ? `groups must be of ${MARKET_GROUPS.join(", ")}.`
+      : !["en", "de"].includes(lang) ? "lang must be en or de."
       : [sport, tournament].some((v) => v && v.length > 64) ? "sport/tournament id too long."
       : null;
     if (bad) {
@@ -118,6 +125,7 @@ Deno.serve(async (req) => {
         formats: client.formats,
         sport_ids: client.sport_ids,
         tournament_ids: client.tournament_ids,
+        market_groups: client.market_groups?.length ? client.market_groups : MARKET_GROUPS,
         rate_limit_per_min: client.rate_limit_per_min,
         remaining: rate.remaining,
         key_expires_at: r.key.expires_at,
@@ -126,18 +134,18 @@ Deno.serve(async (req) => {
     }
 
     const odds = p.get("odds") !== "false";
-    const ck = `api|${clientScopeKey(client)}|${kind}|${path}|${sport ?? ""}|${tournament ?? ""}|${status ?? ""}|${since ?? ""}|${limit}|${offset}|${odds}|${format}`;
+    const ck = `api|${clientScopeKey(client)}|${kind}|${path}|${sport ?? ""}|${tournament ?? ""}|${status ?? ""}|${since ?? ""}|${limit}|${offset}|${odds}|${format}|${groups?.join(",") ?? ""}|${lang}`;
     const { body, etag, hit } = await cached(ck, async () => {
       const rounding = await roundingMode(sb);
       let data: unknown[] = [];
       let meta: Record<string, number> | undefined;
       if (kind === "sports") data = await getSports(sb, client);
       else if (kind === "matches") {
-        const res = await getMatches(sb, client, { sport, tournament, status, since, withOdds: odds, limit, offset, rounding });
+        const res = await getMatches(sb, client, { sport, tournament, status, since, withOdds: odds, limit, offset, rounding, groups, lang: lang as "en" | "de" });
         data = res.rows;
         meta = { total: res.total, limit, offset };
       } else if (kind === "odds") {
-        data = (await getMatches(sb, client, { id: decodeURIComponent(oddsMatch![1]!), withOdds: true, limit: 1, rounding })).rows;
+        data = (await getMatches(sb, client, { id: decodeURIComponent(oddsMatch![1]!), withOdds: true, limit: 1, rounding, groups, lang: lang as "en" | "de" })).rows;
         if (!data.length) return null;
       } else if (kind === "outrights") data = await getOutrights(sb, client, rounding);
       else data = await getResults(sb, client);
