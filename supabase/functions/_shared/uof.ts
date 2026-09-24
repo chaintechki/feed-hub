@@ -80,6 +80,9 @@ export async function upsertEvents(sb: SupabaseClient, events: Ev[]) {
       updated_at: new Date().toISOString(),
     });
   }
+  // The schedule can list the same match twice across pages; keep the last entry per id.
+  const uniq = [...new Map(matches.map((m) => [m.id, m])).values()];
+  matches.length = 0; matches.push(...uniq);
   const chunk = async (table: string, rows: any[], ignore = false) => {
     for (let i = 0; i < rows.length; i += 500) {
       const { error } = await sb.from(table).upsert(rows.slice(i, i + 500), { onConflict: "id", ignoreDuplicates: ignore });

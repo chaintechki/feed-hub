@@ -138,8 +138,8 @@ function onMessage(xml) {
     if (wasDown && subscribed === "1") {
       recover(id);
     }
-    buf.push({ xml });
-    void flush(); // forward alive signals immediately so the panel status is current
+    // Send alive signals on their own, bypassing the odds backlog, so the panel status stays current.
+    signedPost("uof-ingest", { messages: [{ xml }] }).catch((e) => log("alive forward failed", e.message));
     return;
   }
   buf.push({ xml });
