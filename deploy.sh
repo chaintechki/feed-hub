@@ -95,7 +95,7 @@ fi
 # ---------------------------------------------------------------- 1. packages
 log "Checking system packages"
 apt_install git curl ca-certificates gnupg lsb-release rsync nginx certbot \
-  ufw fail2ban unattended-upgrades dnsutils build-essential
+  ufw fail2ban unattended-upgrades dnsutils openssl build-essential
 
 # ---------------------------------------------------------------- 2. Node.js / npm
 log "Checking Node.js and npm"
