@@ -76,7 +76,8 @@ export function ApiClients() {
   const qc = useQueryClient();
   const tree = useSportTree();
   const [edit, setEdit] = useState<{ id?: string | undefined; f: ClientFields } | null>(null);
-  const [domains, setDomains] = useState("");
+  const [domains, setDomains] = useState<string[]>([]);
+  const [domainInput, setDomainInput] = useState("");
   const [newKey, setNewKey] = useState<{ key: string; kind: string; oldExpires?: string } | null>(null);
   const [keyForm, setKeyForm] = useState<KeyForm | null>(null);
 
@@ -100,7 +101,8 @@ export function ApiClients() {
 
   function open(c?: ApiClient) {
     const f = c ? { ...EMPTY, ...c } : EMPTY;
-    setDomains(f.allowed_domains.join(", "));
+    setDomains(f.allowed_domains);
+    setDomainInput("");
     setEdit({ id: c?.id, f: { ...f } });
   }
   const toggle = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
@@ -172,7 +174,7 @@ export function ApiClients() {
       tournament_ids: f.tournament_ids,
       markup_pct: Number(f.markup_pct),
       rate_limit_per_min: Number(f.rate_limit_per_min),
-      allowed_domains: domains.split(/[\s,]+/).filter(Boolean),
+      allowed_domains: domains,
       formats: f.formats,
     };
     run.mutate({ action: "save", id, client }, { onSuccess: () => setEdit(null) });
