@@ -42,6 +42,24 @@ export async function overLimit(sb: SupabaseClient, c: Client, endpoint: string)
   return (data as number) > c.rate_limit_per_min;
 }
 
+/** Fire-and-forget logging of a denied request (401/403/404/429). Never blocks the response. */
+export async function trackDenial(
+  sb: SupabaseClient,
+  client: Client | null,
+  key: string | null,
+  endpoint: string,
+  reason: "invalid_key" | "format_denied" | "domain_denied" | "unknown_endpoint" | "rate_limited" | "not_found",
+) {
+  void sb
+    .rpc("api_track_denial", {
+      _client: client?.id ?? null,
+      _key_hint: key ? key.slice(0, 14) : "",
+      _endpoint: endpoint,
+      _reason: reason,
+    })
+    .then(() => {}, () => {});
+}
+
 type Outcome = { label?: string; name?: string; odds: number };
 export const applyMarkup = (odds: number, pct: number) =>
   Math.max(1.01, Math.round((odds / (1 + (Number(pct) || 0) / 100)) * 100) / 100);

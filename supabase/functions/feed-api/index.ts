@@ -1,4 +1,4 @@
-import { db, getMatches, getOutrights, getResults, getSports, overLimit, resolveKey, toXml } from "../_shared/feed.ts";
+import { db, getMatches, getOutrights, getResults, getSports, overLimit, resolveKey, toXml, trackDenial } from "../_shared/feed.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -19,13 +19,23 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const path = url.pathname.replace(/^.*\/feed-api/, "").replace(/\/+$/, "") || "/";
+    const apiKey = req.headers.get("x-api-key") ?? url.searchParams.get("api_key");
     const sb = db();
-    const client = await resolveKey(sb, req.headers.get("x-api-key") ?? url.searchParams.get("api_key"), "server");
-    if (!client) return err("Invalid or inactive API key", 401);
+    const client = await resolveKey(sb, apiKey, "server");
+    if (!client) {
+      await trackDenial(sb, null, apiKey, path, "invalid_key");
+      return err("Invalid or inactive API key", 401);
+    }
 
     const format = (url.searchParams.get("format") ?? "json").toLowerCase();
-    if (!["json", "xml"].includes(format)) return err("format must be json or xml", 400);
-    if (!client.formats.includes(format)) return err(`Format ${format} not enabled for this client`, 403);
+    if (!["json", "xml"].includes(format)) {
+      await trackDenial(sb, client, apiKey, path, "unknown_endpoint");
+      return err("format must be json or xml", 400);
+    }
+    if (!client.formats.includes(format)) {
+      await trackDenial(sb, client, apiKey, path, "format_denied");
+      return err(`Format ${format} not enabled for this client`, 403);
+    }
 
     let kind: string;
     let data: unknown[];
@@ -36,16 +46,25 @@ Deno.serve(async (req) => {
     else if (oddsMatch) { kind = "odds"; }
     else if (path === "/outrights") { kind = "outrights"; }
     else if (path === "/results") { kind = "results"; }
-    else return err("Unknown endpoint. Use /sports, /matches, /matches/{id}/odds, /outrights, /results", 404);
+    else {
+      await trackDenial(sb, client, apiKey, path, "unknown_endpoint");
+      return err("Unknown endpoint. Use /sports, /matches, /matches/{id}/odds, /outrights, /results", 404);
+    }
 
-    if (await overLimit(sb, client, kind)) return err("Rate limit exceeded", 429);
+    if (await overLimit(sb, client, kind)) {
+      await trackDenial(sb, client, apiKey, kind, "rate_limited");
+      return err("Rate limit exceeded", 429);
+    }
 
     if (kind === "sports") data = await getSports(sb, client);
     else if (kind === "matches")
       data = await getMatches(sb, client, { sport, withOdds: url.searchParams.get("odds") !== "false" });
     else if (kind === "odds") {
       data = await getMatches(sb, client, { id: decodeURIComponent(oddsMatch![1]), withOdds: true });
-      if (!data.length) return err("Match not found", 404);
+      if (!data.length) {
+        await trackDenial(sb, client, apiKey, kind, "not_found");
+        return err("Match not found", 404);
+      }
     } else if (kind === "outrights") data = await getOutrights(sb, client);
     else data = await getResults(sb, client);
 

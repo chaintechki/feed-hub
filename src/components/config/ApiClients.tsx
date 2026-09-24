@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, KeyRound, Pencil, Plus, Power, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -87,6 +87,63 @@ export function ApiClients() {
   }
   const toggle = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
+  const stats = useQuery({
+    queryKey: ["api_usage_stats"],
+    queryFn: async () => {
+      const monthStart = new Date(Date.now() - 30 * 864e5).toISOString();
+      const dayStart = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+      const [u, d] = await Promise.all([
+        supabase.from("api_usage").select("client_id,minute,endpoint,count").gte("minute", monthStart).limit(20000),
+        supabase.from("api_denials").select("client_id,key_hint,minute,count").gte("minute", monthStart).limit(20000),
+      ]);
+      if (u.error) throw u.error;
+      if (d.error) throw d.error;
+      return {
+        usage: (u.data ?? []) as { client_id: string; minute: string; endpoint: string; count: number }[],
+        denials: (d.data ?? []) as { client_id: string | null; key_hint: string; minute: string; count: number }[],
+        dayStart,
+      };
+    },
+    refetchInterval: 30_000,
+  });
+
+  const usage = useMemo(() => {
+    const u = stats.data?.usage ?? [];
+    const d = stats.data?.denials ?? [];
+    const dayStart = stats.data?.dayStart ?? "";
+    const weekStart = new Date(Date.now() - 7 * 864e5).toISOString();
+    const per = new Map<string, { today: number; d7: number; d30: number; denied: number; breakdown: Record<string, number> }>();
+    for (const c of list.data ?? []) per.set(c.id, { today: 0, d7: 0, d30: 0, denied: 0, breakdown: {} });
+    for (const r of u) {
+      const e = per.get(r.client_id);
+      if (!e) continue;
+      if (r.minute >= dayStart) e.today += r.count;
+      if (r.minute >= weekStart) {
+        e.d7 += r.count;
+        e.breakdown[r.endpoint] = (e.breakdown[r.endpoint] ?? 0) + r.count;
+      }
+      e.d30 += r.count;
+    }
+    const unknown = new Map<string, number>();
+    for (const r of d) {
+      if (r.minute < dayStart) continue;
+      if (r.client_id) {
+        const e = per.get(r.client_id);
+        if (e) e.denied += r.count;
+      } else {
+        unknown.set(r.key_hint, (unknown.get(r.key_hint) ?? 0) + r.count);
+      }
+    }
+    const vals = [...per.values()];
+    return {
+      per,
+      unknown: [...unknown.entries()],
+      totalToday: vals.reduce((a, e) => a + e.today, 0),
+      total7d: vals.reduce((a, e) => a + e.d7, 0),
+      deniedToday: vals.reduce((a, e) => a + e.denied, 0) + [...unknown.values()].reduce((a, b) => a + b, 0),
+    };
+  }, [stats.data, list.data]);
+
   function save() {
     if (!edit) return;
     const { id, f } = edit;
@@ -116,6 +173,78 @@ export function ApiClients() {
           </Button>
         </div>
       </div>
+
+      {stats.data && (
+        <div className="rounded-sm border border-border bg-panel">
+          <div className="border-b border-border bg-panel-header px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+            {t("usage.title")}
+          </div>
+          <div className="grid grid-cols-3 gap-px bg-border text-center text-[11px]">
+            <div className="bg-panel px-3 py-2">
+              <div className="text-lg font-bold text-success">{usage.totalToday}</div>
+              <div className="text-muted-foreground">{t("usage.allowedToday")}</div>
+            </div>
+            <div className="bg-panel px-3 py-2">
+              <div className="text-lg font-bold">{usage.total7d}</div>
+              <div className="text-muted-foreground">{t("usage.allowed7d")}</div>
+            </div>
+            <div className="bg-panel px-3 py-2">
+              <div className="text-lg font-bold text-danger">{usage.deniedToday}</div>
+              <div className="text-muted-foreground">{t("usage.deniedToday")}</div>
+            </div>
+          </div>
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground">
+                <th className="px-3 py-1.5 text-left font-semibold uppercase">{t("api.title")}</th>
+                <th className="px-3 py-1.5 text-right font-semibold uppercase">{t("usage.today")}</th>
+                <th className="px-3 py-1.5 text-right font-semibold uppercase">{t("usage.d7")}</th>
+                <th className="px-3 py-1.5 text-right font-semibold uppercase">{t("usage.d30")}</th>
+                <th className="px-3 py-1.5 text-right font-semibold uppercase">{t("usage.denied")}</th>
+                <th className="px-3 py-1.5 text-left font-semibold uppercase">{t("usage.endpoints")}</th>
+                <th className="px-3 py-1.5 text-right font-semibold uppercase">{t("usage.lastActive")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(list.data ?? []).map((c) => {
+                const e = usage.per.get(c.id);
+                const last = c.keys.map((k) => k.last_used_at).filter(Boolean).sort().at(-1);
+                const bd = Object.entries(e?.breakdown ?? {}).map(([k, v]) => `${k} ${v}`).join(" · ") || "—";
+                return (
+                  <tr key={c.id} className="border-b border-border last:border-0">
+                    <td className="px-3 py-1.5 font-semibold">{c.name}</td>
+                    <td className="px-3 py-1.5 text-right font-mono">{e?.today ?? 0}</td>
+                    <td className="px-3 py-1.5 text-right font-mono">{e?.d7 ?? 0}</td>
+                    <td className="px-3 py-1.5 text-right font-mono">{e?.d30 ?? 0}</td>
+                    <td className={"px-3 py-1.5 text-right font-mono" + (e?.denied ? " text-danger" : "")}>{e?.denied ?? 0}</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">{bd}</td>
+                    <td className="px-3 py-1.5 text-right text-muted-foreground">{last ? new Date(last).toLocaleString() : "—"}</td>
+                  </tr>
+                );
+              })}
+              {usage.unknown.map(([hint, n]) => (
+                <tr key={hint || "none"} className="border-b border-border last:border-0">
+                  <td className="px-3 py-1.5 font-semibold text-danger">
+                    {t("usage.reason.invalid_key")}
+                    {hint ? ` (${hint}…)` : ""}
+                  </td>
+                  <td className="px-3 py-1.5 text-right font-mono text-danger">—</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-danger">—</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-danger">—</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-danger">{n}</td>
+                  <td className="px-3 py-1.5 text-muted-foreground">—</td>
+                  <td className="px-3 py-1.5 text-right text-muted-foreground">—</td>
+                </tr>
+              ))}
+              {(list.data ?? []).length === 0 && usage.unknown.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-3 py-2 text-muted-foreground">{t("usage.noActivity")}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="space-y-2">
         {list.isLoading && <p className="text-[11px] text-muted-foreground">{t("common.loading")}</p>}

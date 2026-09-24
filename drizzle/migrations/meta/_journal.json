@@ -29,6 +29,13 @@
       "when": 1790213237869,
       "tag": "0003_api_clients",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790214345246,
+      "tag": "0004_api_usage_denials",
+      "breakpoints": true
     }
   ]
 }
