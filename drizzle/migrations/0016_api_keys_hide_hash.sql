@@ -1,0 +1,2 @@
+REVOKE SELECT ON public.api_keys FROM authenticated;
+GRANT SELECT (id, client_id, kind, prefix, active, last_used_at, created_at, expires_at, allowed_ips, label, rotated_from) ON public.api_keys TO authenticated;
