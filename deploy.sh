@@ -256,11 +256,11 @@ write_common_locations() {
     index index.html;
 
     # Backend proxy – customers and the browser only see https://$DOMAIN
-    location ^~ /api/          { proxy_pass $UPSTREAM/functions/v1/;  include /etc/nginx/snippets/feed-panel-proxy.conf; }
-    location ^~ /functions/v1/ { proxy_pass $UPSTREAM/functions/v1/;  include /etc/nginx/snippets/feed-panel-proxy.conf; }
-    location ^~ /auth/v1/      { proxy_pass $UPSTREAM/auth/v1/;       include /etc/nginx/snippets/feed-panel-proxy.conf; }
-    location ^~ /rest/v1/      { proxy_pass $UPSTREAM/rest/v1/;       include /etc/nginx/snippets/feed-panel-proxy.conf; }
-    location ^~ /storage/v1/   { proxy_pass $UPSTREAM/storage/v1/;    include /etc/nginx/snippets/feed-panel-proxy.conf; }
+    location ^~ /api/          { proxy_pass $UPSTREAM/functions/v1/;  include /etc/nginx/snippets/feed-panel-proxy.conf; proxy_read_timeout 60s; }
+    location ^~ /functions/v1/ { proxy_pass $UPSTREAM/functions/v1/;  include /etc/nginx/snippets/feed-panel-proxy.conf; proxy_read_timeout 60s; }
+    location ^~ /auth/v1/      { proxy_pass $UPSTREAM/auth/v1/;       include /etc/nginx/snippets/feed-panel-proxy.conf; proxy_read_timeout 60s; }
+    location ^~ /rest/v1/      { proxy_pass $UPSTREAM/rest/v1/;       include /etc/nginx/snippets/feed-panel-proxy.conf; proxy_read_timeout 60s; }
+    location ^~ /storage/v1/   { proxy_pass $UPSTREAM/storage/v1/;    include /etc/nginx/snippets/feed-panel-proxy.conf; proxy_read_timeout 60s; }
     location ^~ /realtime/v1/  {
         proxy_pass $UPSTREAM/realtime/v1/;
         include /etc/nginx/snippets/feed-panel-proxy.conf;
@@ -309,7 +309,6 @@ add_header Access-Control-Allow-Origin \$http_origin always;
 add_header Vary Origin always;
 include /etc/nginx/snippets/feed-panel-security.conf;
 proxy_buffering off;
-proxy_read_timeout 60s;
 client_max_body_size 5m;
 NGINX
 }
