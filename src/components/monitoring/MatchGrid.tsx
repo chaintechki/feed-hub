@@ -56,20 +56,23 @@ function MarketCells({ row, market, heat, matchId }: { row: OddsRow | undefined;
   const o = row?.outcomes ?? [];
   const h = (i: number) => (row && o[i] && row.source === "own" ? heat[heatKey(matchId, row.market, row.specifier, o[i]!.label)] : undefined);
   const sus = row?.suspended;
-  const mid = market === "1x2" ? "a" : "neutral";
+  const isTwoWay = o.length === 2;
+  const cells = isTwoWay ? [o[0], undefined, o[1]] : [o[0], o[1], o[2]];
+  const heatIndexes = isTwoWay ? [0, -1, 1] : [0, 1, 2];
   return (
     <>
-      <OddsCell outcome={o[0]} tone="a" heat={h(0)} suspended={sus} />
-      <OddsCell outcome={o[1]} tone={mid} heat={h(1)} suspended={sus} />
-      <OddsCell outcome={o[2]} tone="b" heat={h(2)} suspended={sus} />
+      <OddsCell outcome={cells[0]} tone="a" heat={heatIndexes[0] >= 0 ? h(heatIndexes[0]) : undefined} suspended={sus} />
+      <OddsCell outcome={cells[1]} tone="a" heat={heatIndexes[1] >= 0 ? h(heatIndexes[1]) : undefined} suspended={sus} />
+      <OddsCell outcome={cells[2]} tone="b" heat={heatIndexes[2] >= 0 ? h(heatIndexes[2]) : undefined} suspended={sus} />
     </>
   );
 }
 
 /** Headline line = most balanced one (smallest gap between first and last outcome). */
 function mainLine(rows: OddsRow[]) {
+  const usable = rows.filter((row) => row.outcomes.some((outcome) => typeof outcome.odds === "number" && Number.isFinite(outcome.odds)));
   const gap = (r: OddsRow) => Math.abs((r.outcomes[0]?.odds ?? 99) - (r.outcomes[r.outcomes.length - 1]?.odds ?? 0));
-  return [...rows].sort((a, b) => gap(a) - gap(b))[0];
+  return [...usable].sort((a, b) => gap(a) - gap(b))[0];
 }
 
 export function StrengthBar({ value }: { value: number }) {
