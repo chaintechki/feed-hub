@@ -9,7 +9,7 @@ const ClientFields = z.object({
   active: z.boolean(),
   sport_ids: z.array(z.string().max(64)).max(200),
   tournament_ids: z.array(z.string().max(64)).max(1000),
-  markup_pct: z.number().min(0).max(50),
+  markup_pct: z.number().min(-50).max(50),
   rate_limit_per_min: z.number().int().min(1).max(10000),
   allowed_domains: z.array(z.string().trim().min(1).max(253)).max(50),
   formats: z.array(z.enum(["json", "xml"])).min(1),

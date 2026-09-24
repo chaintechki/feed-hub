@@ -62,7 +62,7 @@ export async function trackDenial(
 
 type Outcome = { label?: string; name?: string; odds: number };
 export const applyMarkup = (odds: number, pct: number) =>
-  Math.max(1.01, Math.round((odds / (1 + (Number(pct) || 0) / 100)) * 100) / 100);
+  Math.max(1.01, Math.round((odds * (1 + (Number(pct) || 0) / 100)) * 100) / 100);
 
 function scope<T extends { eq: any; in: any }>(q: T, c: Client, sportCol = "sport_id", tourCol = "tournament_id"): T {
   let r: any = q;
