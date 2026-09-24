@@ -104,15 +104,22 @@ setInterval(() => {
 }, 5000);
 
 function onMessage(xml) {
-  const alive = xml.match(/^<alive[^>]*product="(\d+)"[^>]*timestamp="(\d+)"[^>]*subscribed="(\d)"/);
-  if (alive) {
-    const id = Number(alive[1]);
+  const aliveTag = xml.match(/^<alive\b([^>]*)>/)?.[1];
+  if (aliveTag) {
+    const attrs = Object.fromEntries([...aliveTag.matchAll(/([\w:-]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
+    const id = Number(attrs.product);
+    const timestamp = Number(attrs.timestamp);
+    const subscribed = attrs.subscribed;
+    if (!id || !timestamp || (subscribed !== "0" && subscribed !== "1")) {
+      log("ignored malformed alive message");
+      return;
+    }
     const p = (producers[id] ??= { lastAlive: 0, lastOk: null, down: true });
     const wasDown = p.down;
     p.lastAlive = Date.now();
-    if (alive[3] === "1" && !wasDown) p.lastOk = Number(alive[2]);
-    if (wasDown || alive[3] === "0") {
-      p.down = false;
+    p.down = subscribed === "0";
+    if (subscribed === "1") p.lastOk = timestamp;
+    if (wasDown && subscribed === "1") {
       recover(id);
     }
   }
