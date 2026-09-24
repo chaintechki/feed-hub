@@ -38,7 +38,7 @@ const EMPTY: ClientFields = {
   formats: ["json", "xml"],
 };
 
-export const FEED_BASE = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1`;
+export const FEED_BASE = `https://${import.meta.env['VITE_SUPABASE_PROJECT_ID']}.supabase.co/functions/v1`;
 
 async function call<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("api-clients-admin", { body });
@@ -61,7 +61,7 @@ export function ApiClients() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const tree = useSportTree();
-  const [edit, setEdit] = useState<{ id?: string; f: ClientFields } | null>(null);
+  const [edit, setEdit] = useState<{ id?: string | undefined; f: ClientFields } | null>(null);
   const [domains, setDomains] = useState("");
   const [newKey, setNewKey] = useState<{ key: string; kind: string } | null>(null);
 
@@ -73,7 +73,7 @@ export function ApiClients() {
   const run = useMutation({
     mutationFn: (body: Record<string, unknown>) => call<{ key?: string }>(body),
     onSuccess: (r, body) => {
-      if (r?.key) setNewKey({ key: r.key, kind: String(body.kind) });
+      if (r?.key) setNewKey({ key: r.key, kind: String(body['kind']) });
       else toast.success(t("users.saved"));
       void qc.invalidateQueries({ queryKey: ["api_clients"] });
     },
