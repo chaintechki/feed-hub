@@ -38,15 +38,26 @@ Deno.serve(async (req) => {
     await sb.from("sports").upsert(sports, { onConflict: "id" });
     result.sports = sports.length;
 
+    // The upstream schedule is slow: page through it (100 per page) within a time budget.
+    // The caller passes `start`; the response returns `next` (null = reached 3 days ahead).
+    const opts = JSON.parse(body || "{}");
+    let start = Math.max(0, Number(opts.start) || 0);
+    const horizon = Date.now() + 3 * 86_400_000;
     const events: any[] = [];
-    const live = await uofGet("/sports/en/schedules/live/schedule.xml").catch(() => null);
-    events.push(...(live?.schedule?.sport_event ?? []));
-    for (let d = 0; d < 3; d++) {
-      const day = new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10);
-      const x = await uofGet(`/sports/en/schedules/${day}/schedule.xml`).catch(() => null);
-      events.push(...(x?.schedule?.sport_event ?? []));
+    let next: number | null = start;
+    while (Date.now() - started < 90_000) {
+      let x: any = null;
+      for (let a = 0; a < 3 && !x; a++) x = await uofGet(`/sports/en/schedules/pre/schedule.xml?start=${start}&limit=100`).catch(() => null);
+      if (!x) break;
+      const page = x?.schedule?.sport_event ?? [];
+      events.push(...page);
+      const last = page.at(-1)?.scheduled;
+      if (page.length < 100 || (last && Date.parse(last) > horizon)) { next = null; break; }
+      start += 100;
+      next = start;
     }
     result.schedule = await upsertEvents(sb, events);
+    result.next = next;
 
     const full = JSON.parse(body || "{}")?.markets === true;
     const { count } = await sb.from("uof_markets").select("id", { count: "exact", head: true });

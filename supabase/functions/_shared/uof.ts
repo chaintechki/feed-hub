@@ -11,7 +11,7 @@ const host = () => Deno.env.get("UOF_API_HOST") ?? "";
 const token = () => Deno.env.get("UOF_ACCESS_TOKEN") ?? "";
 
 export async function uofGet(path: string) {
-  const r = await fetch(`https://${host()}/v1${path}`, { headers: { "x-access-token": token() } });
+  const r = await fetch(`https://${host()}/v1${path}`, { headers: { "x-access-token": token() }, signal: AbortSignal.timeout(25_000) });
   if (!r.ok) throw new Error(`upstream ${r.status} ${path}`);
   return parser.parse(await r.text());
 }
