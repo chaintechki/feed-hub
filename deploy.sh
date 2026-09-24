@@ -197,7 +197,22 @@ UPSTREAM_HOST="${UPSTREAM#https://}"
 mkdir -p /etc/feed-panel && [ "$ENV_FILE" != /etc/feed-panel/env ] && cp "$ENV_FILE" /etc/feed-panel/env && chmod 600 /etc/feed-panel/env
 
 log "Installing dependencies"
-if [ -f package-lock.json ]; then npm ci; else npm install; fi
+npm_install_robust() { # $1 = directory, rest = extra npm args
+  local dir="$1"; shift
+  local try
+  for try in 1 2 3; do
+    if (cd "$dir" && { if [ -f package-lock.json ] && [ "$try" = 1 ]; then npm ci --no-audit --no-fund "$@"; else npm install --no-audit --no-fund "$@"; fi; }); then
+      ok "dependencies installed in $dir"; return 0
+    fi
+    echo "    npm failed (attempt $try) – cleaning node_modules and npm cache, retrying"
+    rm -rf "$dir/node_modules"
+    [ "$try" -ge 2 ] && rm -f "$dir/package-lock.json"
+    npm cache clean --force >/dev/null 2>&1 || true
+    sleep 2
+  done
+  die "npm install failed in $dir after 3 attempts – see /root/.npm/_logs/"
+}
+npm_install_robust "$ROOT"
 
 log "Building production bundle"
 # The browser only ever talks to the own domain; nginx forwards to the backend.
@@ -451,7 +466,7 @@ if [ -f "$UOF_ENV" ]; then
   id -u feedworker >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin feedworker
   mkdir -p /opt/feed-worker
   rsync -a --delete --exclude node_modules "$ROOT/feed-worker/" /opt/feed-worker/
-  (cd /opt/feed-worker && npm install --omit=dev --no-audit --no-fund >/dev/null)
+  npm_install_robust /opt/feed-worker --omit=dev
   chown -R feedworker:feedworker /opt/feed-worker
   umask 077
   printf 'FEED_BACKEND_URL=%s\nFEED_BACKEND_KEY=%s\n' "$UPSTREAM" "$BACKEND_KEY" > /etc/feed-panel/worker.env
