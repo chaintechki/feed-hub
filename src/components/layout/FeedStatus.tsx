@@ -37,7 +37,10 @@ export function FeedStatus() {
     setBusy(true);
     const { data, error } = await supabase.functions.invoke("uof-sync", { body: { start: 0 } });
     setBusy(false);
-    if (error || !data?.ok) return toast.error(t("feed.syncFailed"));
+    if (error || !data?.ok) {
+      toast.error(t("feed.syncFailed"));
+      return;
+    }
     toast.success(t("feed.synced", { count: data.schedule?.matches ?? 0 }));
     void qc.invalidateQueries();
   };
