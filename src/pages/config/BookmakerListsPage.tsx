@@ -13,6 +13,7 @@ import { useBookmakerLists, useBookmakers } from "@/lib/feed/bookmakers";
 import { resolveList } from "@/lib/feed/normalize";
 import { useSportTree } from "@/lib/feed/queries";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 
 type Level = "sport" | "category" | "tournament";
 type Node = { level: Level; ref: string };
@@ -70,7 +71,7 @@ export default function BookmakerListsPage() {
       toast.success(t("users.saved"));
       void qc.invalidateQueries({ queryKey: ["bookmaker_lists"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
   const remove = useMutation({
     mutationFn: async () => {
@@ -81,7 +82,7 @@ export default function BookmakerListsPage() {
       setItems(null);
       void qc.invalidateQueries({ queryKey: ["bookmaker_lists"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const hasList = (lvl: Level, ref: string) => lists.data?.some((l) => l.level === lvl && l.ref_id === ref);

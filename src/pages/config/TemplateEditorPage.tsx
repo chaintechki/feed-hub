@@ -25,6 +25,7 @@ import {
 } from "@/lib/feed/config";
 import { useSportTree } from "@/lib/feed/queries";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 
 export default function TemplateEditorPage() {
   const { id } = useParams();
@@ -78,7 +79,7 @@ export default function TemplateEditorPage() {
       void qc.invalidateQueries({ queryKey: ["templates"] });
       void qc.invalidateQueries({ queryKey: ["template_assignments"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   if (!tpl) return <p className="p-4 text-[11px] text-muted-foreground">{t("common.loading")}</p>;

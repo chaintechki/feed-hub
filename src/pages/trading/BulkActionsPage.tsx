@@ -7,6 +7,7 @@ import { SportTree, type TreeSelection } from "@/components/monitoring/SportTree
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useMatches } from "@/lib/feed/queries";
+import { friendlyError } from "@/lib/errors";
 
 type MatchPatch = Partial<{ suspended: boolean; hotlisted: boolean; control_mode: string }>;
 
@@ -31,7 +32,7 @@ export default function BulkActionsPage() {
       queryClient.invalidateQueries({ queryKey: ["matches"] });
       toast.success(`${count} events updated`);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   return (

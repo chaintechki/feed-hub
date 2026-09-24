@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, type AppRole } from "@/providers/AuthProvider";
 import { USERNAME_RE, passwordValid } from "../../../supabase/functions/_shared/auth-core.ts";
+import { friendlyError } from "@/lib/errors";
 
 type ManagedUser = {
   id: string;
@@ -94,7 +95,7 @@ export function UserManagement() {
       void qc.invalidateQueries({ queryKey: ["admin_users"] });
       void qc.invalidateQueries({ queryKey: ["audit_log"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const columns: Column<ManagedUser>[] = [

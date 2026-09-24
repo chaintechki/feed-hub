@@ -11,7 +11,6 @@
 #
 # Usage (as root, inside the cloned repository):
 #   sudo ./deploy.sh
-#   sudo LE_EMAIL=admin@feedarea.net ./deploy.sh
 #   sudo DOMAIN=feed.feedarea.net BRANCH=main WITH_WWW=0 ./deploy.sh
 #   sudo SKIP_PULL=1 ./deploy.sh      # build the working copy as-is
 #   sudo NO_BUMP=1 ./deploy.sh        # keep the current version number
@@ -22,6 +21,8 @@ set -euo pipefail
 
 DOMAIN="${DOMAIN:-feed.feedarea.net}"
 BRANCH="${BRANCH:-main}"
+LE_EMAIL="${LE_EMAIL:-mail@cetoria.de}"
+ENV_FILE="${ENV_FILE:-}"
 WITH_WWW="${WITH_WWW:-0}"
 TARGET="${TARGET:-/var/www/html}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/feed-panel}"
@@ -101,11 +102,25 @@ if [ "${NO_BUMP:-0}" != "1" ]; then
 fi
 echo "    Version: $(node -p "require('./package.json').version")"
 
+log "Reading backend address"
+for f in "$ENV_FILE" "$ROOT/.env" /etc/feed-panel/env; do
+  [ -n "$f" ] && [ -f "$f" ] && { ENV_FILE="$f"; break; }
+done
+[ -n "$ENV_FILE" ] && [ -f "$ENV_FILE" ] || die "No environment file found (.env or /etc/feed-panel/env)."
+UPSTREAM="$(grep -E '^VITE_SUPABASE_URL=' "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"'"'" | sed 's:/*$::')"
+[ -n "$UPSTREAM" ] || die "Backend address missing in $ENV_FILE."
+UPSTREAM_HOST="${UPSTREAM#https://}"
+mkdir -p /etc/feed-panel && [ "$ENV_FILE" != /etc/feed-panel/env ] && cp "$ENV_FILE" /etc/feed-panel/env && chmod 600 /etc/feed-panel/env
+
 log "Installing dependencies"
 if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 log "Building production bundle"
-npm run build
+# The browser only ever talks to the own domain; nginx forwards to the backend.
+FP_PRODUCTION_CLIENT=1 VITE_SUPABASE_URL="https://$DOMAIN" VITE_PUBLIC_ORIGIN="https://$DOMAIN" VITE_SW_HOSTS="$DOMAIN" npm run build
+if grep -rqiE "lovable|$UPSTREAM_HOST" dist; then
+  echo "    Warning: build output still contains provider references:" && grep -rliE "lovable|$UPSTREAM_HOST" dist | head
+fi
 [ -f "$ROOT/dist/index.html" ] || die "Build finished but dist/index.html is missing."
 
 # ---------------------------------------------------------------- 4. publish
@@ -133,28 +148,73 @@ write_common_locations() {
     root $TARGET;
     index index.html;
 
+    # Backend proxy – customers and the browser only see https://$DOMAIN
+    location ^~ /api/          { proxy_pass $UPSTREAM/functions/v1/;  include /etc/nginx/snippets/feed-panel-proxy.conf; }
+    location ^~ /functions/v1/ { proxy_pass $UPSTREAM/functions/v1/;  include /etc/nginx/snippets/feed-panel-proxy.conf; }
+    location ^~ /auth/v1/      { proxy_pass $UPSTREAM/auth/v1/;       include /etc/nginx/snippets/feed-panel-proxy.conf; }
+    location ^~ /rest/v1/      { proxy_pass $UPSTREAM/rest/v1/;       include /etc/nginx/snippets/feed-panel-proxy.conf; }
+    location ^~ /storage/v1/   { proxy_pass $UPSTREAM/storage/v1/;    include /etc/nginx/snippets/feed-panel-proxy.conf; }
+    location ^~ /realtime/v1/  {
+        proxy_pass $UPSTREAM/realtime/v1/;
+        include /etc/nginx/snippets/feed-panel-proxy.conf;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 1h;
+    }
+
     # Update-critical files: never cached, so new versions are detected immediately.
-    location = /index.html  { add_header Cache-Control "no-cache, no-store, must-revalidate" always; try_files \$uri =404; }
-    location = /sw.js       { add_header Cache-Control "no-cache, no-store, must-revalidate" always; try_files \$uri =404; }
-    location = /version.json { add_header Cache-Control "no-cache, no-store, must-revalidate" always; try_files \$uri =404; }
-    location = /manifest.webmanifest { add_header Cache-Control "no-cache" always; try_files \$uri =404; }
+    location = /index.html  { include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "no-cache, no-store, must-revalidate" always; try_files \$uri =404; }
+    location = /sw.js       { include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "no-cache, no-store, must-revalidate" always; try_files \$uri =404; }
+    location = /version.json { include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "no-cache, no-store, must-revalidate" always; try_files \$uri =404; }
+    location = /manifest.webmanifest { include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "no-cache" always; try_files \$uri =404; }
 
     # Hashed build assets: cache for a year.
     location /assets/ {
-        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "public, max-age=31536000, immutable" always;
         try_files \$uri =404;
     }
 
     location ~* \.(?:png|jpg|jpeg|svg|ico|webp|woff2?)$ {
-        add_header Cache-Control "public, max-age=604800" always;
+        include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "public, max-age=604800" always;
         try_files \$uri =404;
     }
 
     # SPA fallback
     location / {
-        add_header Cache-Control "no-cache" always;
+        include /etc/nginx/snippets/feed-panel-security.conf; add_header Cache-Control "no-cache" always;
         try_files \$uri \$uri/ /index.html;
     }
+NGINX
+}
+
+write_proxy_snippet() {
+  mkdir -p /etc/nginx/snippets
+  cat > /etc/nginx/snippets/feed-panel-proxy.conf <<NGINX
+proxy_set_header Host $UPSTREAM_HOST;
+proxy_ssl_server_name on;
+proxy_ssl_name $UPSTREAM_HOST;
+proxy_set_header X-Real-IP \$remote_addr;
+proxy_set_header X-Forwarded-For \$remote_addr;
+proxy_set_header X-Forwarded-Proto https;
+proxy_hide_header Access-Control-Allow-Origin;
+add_header Access-Control-Allow-Origin \$http_origin always;
+add_header Vary Origin always;
+include /etc/nginx/snippets/feed-panel-security.conf;
+proxy_buffering off;
+proxy_read_timeout 60s;
+client_max_body_size 5m;
+NGINX
+}
+
+write_security_snippet() {
+  cat > /etc/nginx/snippets/feed-panel-security.conf <<NGINX
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "SAMEORIGIN" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss://$DOMAIN; worker-src 'self'; manifest-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
 NGINX
 }
 
@@ -201,11 +261,7 @@ server {
     ssl_stapling on;
     ssl_stapling_verify on;
 
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    include /etc/nginx/snippets/feed-panel-security.conf;
 
     gzip on;
     gzip_vary on;
@@ -229,18 +285,14 @@ reload_nginx() {
 log "Configuring nginx for $SERVER_NAMES"
 [ -L /etc/nginx/sites-enabled/default ] && rm -f /etc/nginx/sites-enabled/default
 ln -sf "$SITE_FILE" "$SITE_LINK"
+write_proxy_snippet
+write_security_snippet
 
 if [ ! -f "$CERT_DIR/fullchain.pem" ]; then
   write_http_only
   reload_nginx
 
   # ------------------------------------------------------------ 6. Let's Encrypt
-  if [ -z "${LE_EMAIL:-}" ]; then
-    if [ -t 0 ]; then
-      read -rp "E-mail address for Let's Encrypt (expiry notices): " LE_EMAIL
-    fi
-    [ -n "${LE_EMAIL:-}" ] || die "LE_EMAIL is required for the first certificate (LE_EMAIL=you@example.com ./deploy.sh)."
-  fi
   log "Requesting Let's Encrypt certificate for $SERVER_NAMES"
   certbot certonly --webroot -w "$ACME_ROOT" "${CERT_DOMAINS[@]}" \
     --email "$LE_EMAIL" --agree-tos --no-eff-email --non-interactive --keep-until-expiring \

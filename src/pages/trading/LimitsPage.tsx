@@ -6,6 +6,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useMarginTemplates } from "@/pages/trading/MarginsPage";
+import { friendlyError } from "@/lib/errors";
 
 type Row = { id: string; name: string; market: string; max_stake: number | null };
 
@@ -22,7 +23,7 @@ export default function LimitsPage() {
       queryClient.invalidateQueries({ queryKey: ["margin_templates"] });
       toast.success("Limit saved");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const columns: Column<Row>[] = [

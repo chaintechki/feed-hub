@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSettlements } from "@/lib/feed/queries";
 import { useAuth } from "@/providers/AuthProvider";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 
 type SettlementRow = {
   id: string;
@@ -40,7 +41,7 @@ export default function SettlementsPage() {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settlements"] }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const rows = (data as SettlementRow[]).filter((r) =>

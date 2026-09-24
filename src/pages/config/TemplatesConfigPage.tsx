@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { MARKETS, defaultMarket, useAssignments, useLadders, useTemplates, type Template } from "@/lib/feed/config";
 import { useSportTree } from "@/lib/feed/queries";
+import { friendlyError } from "@/lib/errors";
 
 export default function TemplatesConfigPage() {
   const { t } = useTranslation();
@@ -42,7 +43,7 @@ export default function TemplatesConfigPage() {
       void qc.invalidateQueries({ queryKey: ["templates"] });
       navigate(`/configuration/templates/${id}`);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const remove = useMutation({
@@ -55,7 +56,7 @@ export default function TemplatesConfigPage() {
       void qc.invalidateQueries({ queryKey: ["templates"] });
       void qc.invalidateQueries({ queryKey: ["template_assignments"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   const sportName = (id: string | null) => tree.data?.find((s) => s.id === id)?.name ?? t("cfg.allSports");

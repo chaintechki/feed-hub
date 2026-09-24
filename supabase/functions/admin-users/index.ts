@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 
+import { originAllowed, overUserLimit, passwordLeaked } from "../_shared/guard.ts";
 import { USERNAME_DOMAIN, USERNAME_RE, passwordValid, pepperPassword } from "../_shared/auth-core.ts";
 
 const DOMAIN = USERNAME_DOMAIN;
@@ -31,6 +32,7 @@ const json = (data: unknown, status = 200) =>
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (!originAllowed(req)) return json({ error: "Forbidden origin" }, 403);
   try {
     const auth = req.headers.get("Authorization");
     if (!auth?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
@@ -51,6 +53,11 @@ Deno.serve(async (req) => {
     const parsed = Body.safeParse(await req.json());
     if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
     const b = parsed.data;
+
+    if (b.action !== "list" && b.action !== "check_username" && (await overUserLimit(admin, me, "admin-users", 30)))
+      return json({ error: "rate_limited" }, 429);
+    if ((b.action === "create" || b.action === "reset_password") && (await passwordLeaked(b.password)))
+      return json({ error: "password_leaked" }, 400);
 
     if ("user_id" in b && b.user_id === me && ["ban", "delete"].includes(b.action))
       return json({ error: "You cannot do this to your own account" }, 400);

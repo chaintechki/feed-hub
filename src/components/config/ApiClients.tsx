@@ -14,6 +14,8 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useSportTree } from "@/lib/feed/queries";
 import { isExpired, isValidIpRule } from "../../../supabase/functions/_shared/api-core.ts";
+import { friendlyError } from "@/lib/errors";
+import { FEED_BASE, WIDGET_SCRIPT } from "@/lib/publicBase";
 
 type ApiKey = {
   id: string;
@@ -50,7 +52,7 @@ const EMPTY: ClientFields = {
   formats: ["json", "xml"],
 };
 
-export const FEED_BASE = `https://${import.meta.env['VITE_SUPABASE_PROJECT_ID']}.supabase.co/functions/v1`;
+export { FEED_BASE } from "@/lib/publicBase";
 
 async function call<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("api-clients-admin", { body });
@@ -93,7 +95,7 @@ export function ApiClients() {
       else toast.success(t("users.saved"));
       void qc.invalidateQueries({ queryKey: ["api_clients"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e)),
   });
 
   function open(c?: ApiClient) {
@@ -494,7 +496,7 @@ export function ApiClients() {
               <Label className="text-[11px] uppercase">{t("api.example")}</Label>
               <pre className="panel-scroll overflow-auto rounded-sm bg-muted p-2 font-mono text-[10px]">
                 {newKey.kind === "widget"
-                  ? `<script src="${window.location.origin}/widget.js"\n  data-key="${newKey.key}"\n  data-api="${FEED_BASE}/feed-widget"\n  data-sport="sr:sport:1"></script>`
+                  ? `<script src="${WIDGET_SCRIPT}"\n  data-key="${newKey.key}"\n  data-api="${FEED_BASE}/feed-widget"\n  data-sport="sr:sport:1"></script>`
                   : `curl -H "X-API-Key: ${newKey.key}" \\\n  "${FEED_BASE}/feed-api/matches?format=xml"`}
               </pre>
             </div>
