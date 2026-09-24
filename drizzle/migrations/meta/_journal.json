@@ -43,6 +43,34 @@
       "when": 1790214752891,
       "tag": "0005_0005_cost_overview",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790216905150,
+      "tag": "0006_monitoring_matchup",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790217141361,
+      "tag": "0007_templates_ladders_tournaments",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790217300194,
+      "tag": "0008_bookmaker_lists",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790217424826,
+      "tag": "0009_feed_options_outrights",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
+import { HEAT_WINDOW_MS, heatDir, heatKey, type Heat } from "@/lib/feed/heat";
 import type { MatchRow, OddsRow, Outcome, TreeSport } from "@/lib/feed/types";
 
 type DbMatch = {
@@ -22,6 +23,7 @@ type DbMatch = {
   comment_count: number;
   early_odds: boolean;
   provider_only: boolean;
+  margin_skewed: boolean;
 };
 
 /** Sport / category / tournament tree with per-node counters. */
@@ -78,7 +80,7 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
       let query = supabase
         .from("matches")
         .select(
-          "id,sport_id,category_id,tournament_id,home_team,away_team,scheduled,status,liveodds,match_minute,booked,suspended,hotlisted,alerted,control_mode,comment_count,early_odds,provider_only",
+          "id,sport_id,category_id,tournament_id,home_team,away_team,scheduled,status,liveodds,match_minute,booked,suspended,hotlisted,alerted,control_mode,comment_count,early_odds,provider_only,margin_skewed",
         )
         .order("scheduled")
         .limit(500);
@@ -92,18 +94,25 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
       const rows = (data ?? []) as DbMatch[];
       if (!rows.length) return [];
 
-      const [{ data: odds }, { data: tours }, { data: cats }, { data: sports }] = await Promise.all([
+      const ids = rows.map((r) => r.id);
+      const since = new Date(Date.now() - HEAT_WINDOW_MS).toISOString();
+      const [{ data: odds }, { data: tours }, { data: cats }, { data: sports }, { data: hist }, { data: alerts }, { data: logs }] = await Promise.all([
         supabase
           .from("match_odds")
-          .select("match_id,source,market,specifier,outcomes,margin")
-          .in(
-            "match_id",
-            rows.map((r) => r.id),
-          ),
+          .select("match_id,source,market,specifier,outcomes,margin,suspended,control_mode,market_group,alerted,updated_at")
+          .in("match_id", ids),
         supabase.from("tournaments").select("id,name"),
         supabase.from("categories").select("id,name"),
         supabase.from("sports").select("id,name"),
+        supabase.from("odds_history").select("match_id,market,specifier,outcome,odds,prev_odds,changed_at").in("match_id", ids).gte("changed_at", since).order("changed_at"),
+        supabase.from("alerts").select("match_id,score").in("match_id", ids).is("acknowledged_at", null),
+        supabase.from("alert_log").select("match_id").in("match_id", ids),
       ]);
+      const heat = buildHeat(hist ?? []);
+      const score = new Map<string, number>();
+      for (const a of alerts ?? []) if (a.match_id) score.set(a.match_id, (score.get(a.match_id) ?? 0) + Number(a.score));
+      const logCount = new Map<string, number>();
+      for (const l of logs ?? []) logCount.set(l.match_id, (logCount.get(l.match_id) ?? 0) + 1);
 
       const tourName = new Map((tours ?? []).map((t) => [t.id, t.name]));
       const catName = new Map((cats ?? []).map((c) => [c.id, c.name]));
@@ -131,15 +140,11 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
         commentCount: m.comment_count,
         earlyOdds: m.early_odds,
         providerOnly: m.provider_only,
-        odds: (odds ?? [])
-          .filter((o) => o.match_id === m.id)
-          .map<OddsRow>((o) => ({
-            source: o.source as OddsRow["source"],
-            market: o.market as OddsRow["market"],
-            specifier: o.specifier,
-            outcomes: (o.outcomes as unknown as Outcome[]) ?? [],
-            margin: o.margin == null ? null : Number(o.margin),
-          })),
+        marginSkewed: m.margin_skewed,
+        alertScore: Math.round(score.get(m.id) ?? 0),
+        logCount: logCount.get(m.id) ?? 0,
+        heat: heat[m.id] ?? {},
+        odds: (odds ?? []).filter((o) => o.match_id === m.id).map(toOddsRow),
       }));
     },
   });
@@ -186,6 +191,95 @@ export function useOutrights() {
         .limit(300);
       if (error) throw error;
       return data ?? [];
+    },
+  });
+}
+
+type DbOdds = {
+  source: string;
+  market: string;
+  specifier: string | null;
+  outcomes: unknown;
+  margin: number | null;
+  suspended: boolean;
+  control_mode: string;
+  market_group: string;
+  alerted: boolean;
+  updated_at: string;
+};
+export const toOddsRow = (o: DbOdds): OddsRow => ({
+  source: o.source as OddsRow["source"],
+  market: o.market as OddsRow["market"],
+  specifier: o.specifier,
+  outcomes: (o.outcomes as Outcome[]) ?? [],
+  margin: o.margin == null ? null : Number(o.margin),
+  suspended: o.suspended,
+  controlMode: o.control_mode,
+  group: o.market_group,
+  alerted: o.alerted,
+  updatedAt: o.updated_at,
+});
+
+type DbHist = { match_id: string; market: string; specifier: string | null; outcome: string; odds: number; prev_odds: number | null; changed_at: string };
+/** Latest change per outcome, grouped by match. */
+export function buildHeat(hist: DbHist[]) {
+  const out: Record<string, Record<string, Heat>> = {};
+  for (const h of hist) {
+    const dir = heatDir(h.prev_odds == null ? null : Number(h.prev_odds), Number(h.odds));
+    if (!dir) continue;
+    (out[h.match_id] ??= {})[heatKey(h.match_id, h.market, h.specifier, h.outcome)] = { dir, at: h.changed_at };
+  }
+  return out;
+}
+
+/** Single match with all markets (Match Up view). */
+export function useMatchUp(id: string | undefined) {
+  return useQuery({
+    queryKey: ["matchup", id],
+    enabled: !!id,
+    refetchInterval: 15_000,
+    queryFn: async () => {
+      const since = new Date(Date.now() - HEAT_WINDOW_MS).toISOString();
+      const [m, o, h] = await Promise.all([
+        supabase.from("matches").select("*, tournaments(name), categories(name), sports(name)").eq("id", id!).maybeSingle(),
+        supabase.from("match_odds").select("match_id,source,market,specifier,outcomes,margin,suspended,control_mode,market_group,alerted,updated_at").eq("match_id", id!).order("market"),
+        supabase.from("odds_history").select("match_id,market,specifier,outcome,odds,prev_odds,changed_at").eq("match_id", id!).gte("changed_at", since).order("changed_at"),
+      ]);
+      if (m.error) throw m.error;
+      if (o.error) throw o.error;
+      return { match: m.data, odds: (o.data ?? []).map(toOddsRow), heat: buildHeat(h.data ?? [])[id!] ?? {} };
+    },
+  });
+}
+
+export function useMatchAlerts(id: string | null) {
+  return useQuery({
+    queryKey: ["match-alerts", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("alerts")
+        .select("id,type,severity,message,score,factors,acknowledged_at,created_at")
+        .eq("match_id", id!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useMatchComments(id: string | null) {
+  return useQuery({
+    queryKey: ["match-comments", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const [c, l] = await Promise.all([
+        supabase.from("match_comments").select("id,body,author_id,created_at").eq("match_id", id!).order("created_at", { ascending: false }),
+        supabase.from("alert_log").select("id,action,user_id,details,created_at").eq("match_id", id!).order("created_at", { ascending: false }),
+      ]);
+      if (c.error) throw c.error;
+      if (l.error) throw l.error;
+      return { comments: c.data ?? [], log: l.data ?? [] };
     },
   });
 }
