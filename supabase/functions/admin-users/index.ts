@@ -134,6 +134,7 @@ Deno.serve(async (req) => {
         return json({ ok: true });
       }
       case "delete": {
+        await admin.from("api_clients").update({ owner_id: null }).eq("owner_id", b.user_id);
         await admin.from("user_roles").delete().eq("user_id", b.user_id);
         await admin.from("user_settings").delete().eq("user_id", b.user_id);
         await admin.from("filter_presets").delete().eq("user_id", b.user_id);
