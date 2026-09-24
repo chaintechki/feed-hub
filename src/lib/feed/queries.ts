@@ -77,11 +77,13 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
   return useQuery({
     queryKey: ["matches", selection],
     queryFn: async (): Promise<MatchRow[]> => {
+      const currentWindowStart = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
       let query = supabase
         .from("matches")
         .select(
           "id,sport_id,category_id,tournament_id,home_team,away_team,scheduled,status,liveodds,match_minute,booked,suspended,hotlisted,alerted,control_mode,comment_count,early_odds,provider_only,margin_skewed",
         )
+        .gte("scheduled", currentWindowStart)
         .order("scheduled")
         .limit(500);
 
@@ -133,8 +135,17 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
       const catName = new Map((cats ?? []).map((c) => [c.id, c.name]));
       const sportName = new Map((sports ?? []).map((s) => [s.id, s.name]));
 
-      const withOdds = new Set(odds.map((o) => o.match_id));
-      const sorted = [...rows].sort((a, b) => Number(withOdds.has(b.id)) - Number(withOdds.has(a.id)) || a.scheduled.localeCompare(b.scheduled));
+      const withUsableOdds = new Set(
+        odds
+          .filter((o) => {
+            const outcomes = Array.isArray(o.outcomes) ? (o.outcomes as unknown as Outcome[]) : [];
+            return outcomes.some((outcome) => typeof outcome.odds === "number" && Number.isFinite(outcome.odds));
+          })
+          .map((o) => o.match_id),
+      );
+      const sorted = [...rows].sort(
+        (a, b) => Number(withUsableOdds.has(b.id)) - Number(withUsableOdds.has(a.id)) || a.scheduled.localeCompare(b.scheduled),
+      );
       return sorted.map((m) => ({
         id: m.id,
         sportId: m.sport_id,
