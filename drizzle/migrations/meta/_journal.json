@@ -22,6 +22,13 @@
       "when": 1790211339128,
       "tag": "0002_profiles_username",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790213237869,
+      "tag": "0003_api_clients",
+      "breakpoints": true
     }
   ]
 }

@@ -55,6 +55,115 @@ export type Database = {
           },
         ]
       }
+      api_clients: {
+        Row: {
+          active: boolean
+          allowed_domains: string[]
+          created_at: string
+          formats: string[]
+          id: string
+          markup_pct: number
+          name: string
+          rate_limit_per_min: number
+          sport_ids: string[]
+          tournament_ids: string[]
+        }
+        Insert: {
+          active?: boolean
+          allowed_domains?: string[]
+          created_at?: string
+          formats?: string[]
+          id?: string
+          markup_pct?: number
+          name: string
+          rate_limit_per_min?: number
+          sport_ids?: string[]
+          tournament_ids?: string[]
+        }
+        Update: {
+          active?: boolean
+          allowed_domains?: string[]
+          created_at?: string
+          formats?: string[]
+          id?: string
+          markup_pct?: number
+          name?: string
+          rate_limit_per_min?: number
+          sport_ids?: string[]
+          tournament_ids?: string[]
+        }
+        Relationships: []
+      }
+      api_keys: {
+        Row: {
+          active: boolean
+          client_id: string
+          created_at: string
+          id: string
+          key_hash: string
+          kind: string
+          last_used_at: string | null
+          prefix: string
+        }
+        Insert: {
+          active?: boolean
+          client_id: string
+          created_at?: string
+          id?: string
+          key_hash: string
+          kind?: string
+          last_used_at?: string | null
+          prefix: string
+        }
+        Update: {
+          active?: boolean
+          client_id?: string
+          created_at?: string
+          id?: string
+          key_hash?: string
+          kind?: string
+          last_used_at?: string | null
+          prefix?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "api_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      api_usage: {
+        Row: {
+          client_id: string
+          count: number
+          endpoint: string
+          minute: string
+        }
+        Insert: {
+          client_id: string
+          count?: number
+          endpoint: string
+          minute: string
+        }
+        Update: {
+          client_id?: string
+          count?: number
+          endpoint?: string
+          minute?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_usage_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "api_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -559,6 +668,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      api_track: {
+        Args: { _client: string; _endpoint: string; _limit: number }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
