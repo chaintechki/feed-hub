@@ -105,7 +105,23 @@
     "scopeHint": "Nichts gewählt = alle Daten. Sportarten und Ligen schränken jeweils ein.",
     "newKey": "Neuer Schlüssel erstellt",
     "onceHint": "Schlüssel jetzt kopieren – er wird nicht erneut angezeigt.",
-    "example": "Einbindungsbeispiel"
+    "example": "Einbindungsbeispiel",
+    "expired": "Abgelaufen",
+    "expires": "Läuft ab",
+    "never": "nie",
+    "anyIp": "alle",
+    "rotate": "Rotieren",
+    "rotateConfirm": "Neuen Schlüssel erzeugen? Der alte bleibt noch 24 Stunden gültig.",
+    "rotatedHint": "Der alte Schlüssel bleibt gültig bis",
+    "newServerKey": "Neuer API-Schlüssel",
+    "newWidgetKey": "Neuer Widget-Schlüssel",
+    "keyLabel": "Bezeichnung",
+    "expiresHint": "Leer lassen für unbegrenzte Gültigkeit.",
+    "expiresFuture": "Datum muss in der Zukunft liegen.",
+    "ipWhitelist": "IP-Freigabe",
+    "ipHint": "Leer = alle IPs. Einzel-IPs oder Bereiche (CIDR), durch Komma getrennt.",
+    "ipInvalid": "Ungültig",
+    "generate": "Erzeugen"
   },
   "usage": {
     "title": "Abruf-Statistik",
@@ -127,7 +143,13 @@
       "unknown_endpoint": "Unbekannter Endpunkt",
       "rate_limited": "Limit überschritten",
       "not_found": "Spiel nicht gefunden",
-      "unknown:fp": "Unbekannter Schlüssel"
+      "unknown:fp": "Unbekannter Schlüssel",
+      "key_expired": "Schlüssel abgelaufen",
+      "ip_denied": "IP nicht freigegeben",
+      "key_in_query": "Schlüssel in URL",
+      "param_invalid": "Ungültiger Parameter",
+      "format_invalid": "Ungültiges Format",
+      "key_missing": "Kein Schlüssel"
     }
   },
   "mu": {

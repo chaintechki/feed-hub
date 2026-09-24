@@ -1,4 +1,6 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { ERROR_CODES, ipAllowed, isExpired, priceOdds, type ErrorCode, type RoundingMode } from "./api-core.ts";
+export { ERROR_CODES, buildOpenApi, clientIp, type ErrorCode } from "./api-core.ts";
 
 export type Client = {
   id: string;
@@ -22,25 +24,70 @@ export async function sha256(s: string) {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export async function resolveKey(sb: SupabaseClient, key: string | null, kind: "server" | "widget") {
-  if (!key || key.length < 20 || key.length > 100) return null;
+export type KeyInfo = { id: string; expires_at: string | null };
+export type Resolved = { ok: true; client: Client; key: KeyInfo } | { ok: false; code: ErrorCode; client: Client | null };
+
+export async function resolveKey(sb: SupabaseClient, key: string | null, kind: "server" | "widget", ip: string | null = null): Promise<Resolved> {
+  if (!key) return { ok: false, code: "key_missing", client: null };
+  if (key.length < 20 || key.length > 100) return { ok: false, code: "invalid_key", client: null };
   const hash = await sha256(key);
   const { data } = await sb
     .from("api_keys")
-    .select("id,kind,active,api_clients(*)")
+    .select("id,kind,active,expires_at,allowed_ips,api_clients(*)")
     .eq("key_hash", hash)
     .maybeSingle();
-  if (!data || !data.active || data.kind !== kind) return null;
+  if (!data || !data.active || data.kind !== kind) return { ok: false, code: "invalid_key", client: null };
   const client = data.api_clients as unknown as Client;
-  if (!client?.active) return null;
-  void sb.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", data.id);
-  return client;
+  if (!client?.active) return { ok: false, code: "invalid_key", client: null };
+  if (isExpired(data.expires_at)) return { ok: false, code: "key_expired", client };
+  if (kind === "server" && !ipAllowed(ip, data.allowed_ips ?? [])) return { ok: false, code: "ip_denied", client };
+  void sb.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", data.id).then(() => {}, () => {});
+  return { ok: true, client, key: { id: data.id, expires_at: data.expires_at } };
+}
+
+/** Live rounding mode from feed options (cached 60 s per instance). */
+let rounding: { at: number; mode: RoundingMode } | null = null;
+export async function roundingMode(sb: SupabaseClient): Promise<RoundingMode> {
+  if (rounding && Date.now() - rounding.at < 60_000) return rounding.mode;
+  const { data } = await sb.from("feed_options").select("options").eq("scope", "live").maybeSingle();
+  const mode = ((data?.options as Record<string, unknown> | null)?.rounding as RoundingMode) ?? "none";
+  rounding = { at: Date.now(), mode };
+  return mode;
+}
+
+/** Uniform error body: JSON `{error:{code,message}}` or XML `<error code="">`. */
+export function errorBody(code: ErrorCode, xml = false, detail?: string) {
+  const [status, msg] = ERROR_CODES[code];
+  const message = detail ? `${msg} ${detail}` : msg;
+  return xml
+    ? { status, type: "application/xml; charset=utf-8", body: `<?xml version="1.0" encoding="UTF-8"?>\n<error code="${code}">${esc(message)}</error>` }
+    : { status, type: "application/json; charset=utf-8", body: JSON.stringify({ error: { code, message } }) };
+}
+
+/** Proxies may weaken ETags (W/"…"); compare the opaque part. */
+export const etagMatches = (header: string | null, etag: string) =>
+  !!header && header.split(",").some((h) => h.trim().replace(/^W\//, "") === etag.replace(/^W\//, ""));
+
+export async function etagOf(body: string) {
+  // Content hash without volatile generation timestamps → stable across instances/rebuilds.
+  const stable = body.replace(/"generated_at":"[^"]*"/g, "").replace(/generated_at="\d+"/g, "");
+  const buf = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(stable));
+  return `"${Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("")}"`;
 }
 
 export async function overLimit(sb: SupabaseClient, c: Client, endpoint: string) {
   const { data } = await sb.rpc("api_track", { _client: c.id, _endpoint: endpoint, _limit: c.rate_limit_per_min });
-  return (data as number) > c.rate_limit_per_min;
+  const used = Number(data) || 0;
+  const reset = Math.floor(Date.now() / 60000) * 60 + 60;
+  return { limited: used > c.rate_limit_per_min, limit: c.rate_limit_per_min, remaining: Math.max(0, c.rate_limit_per_min - used), reset };
 }
+export type RateInfo = Awaited<ReturnType<typeof overLimit>>;
+export const rateHeaders = (r: RateInfo): Record<string, string> => ({
+  "X-RateLimit-Limit": String(r.limit),
+  "X-RateLimit-Remaining": String(r.remaining),
+  "X-RateLimit-Reset": String(r.reset),
+  ...(r.limited ? { "Retry-After": String(Math.max(1, r.reset - Math.floor(Date.now() / 1000))) } : {}),
+});
 
 /** Fire-and-forget logging of a denied request (401/403/404/429). Never blocks the response. */
 export async function trackDenial(
@@ -48,7 +95,7 @@ export async function trackDenial(
   client: Client | null,
   key: string | null,
   endpoint: string,
-  reason: "invalid_key" | "format_denied" | "domain_denied" | "unknown_endpoint" | "rate_limited" | "not_found",
+  reason: ErrorCode,
 ) {
   void sb
     .rpc("api_track_denial", {
@@ -61,8 +108,7 @@ export async function trackDenial(
 }
 
 type Outcome = { label?: string; name?: string; odds: number };
-export const applyMarkup = (odds: number, pct: number) =>
-  Math.max(1.01, Math.round((odds * (1 + (Number(pct) || 0) / 100)) * 100) / 100);
+export const applyMarkup = (odds: number, pct: number, mode: RoundingMode = "none") => priceOdds(odds, pct, mode);
 
 function scope<T extends { eq: any; in: any }>(q: T, c: Client, sportCol = "sport_id", tourCol = "tournament_id"): T {
   let r: any = q;
@@ -89,42 +135,63 @@ export async function getSports(sb: SupabaseClient, c: Client) {
   }));
 }
 
-export async function getMatches(sb: SupabaseClient, c: Client, opts: { id?: string; sport?: string; withOdds?: boolean }) {
+export type MatchOpts = {
+  id?: string | undefined;
+  sport?: string | undefined;
+  tournament?: string | undefined;
+  status?: string | undefined;
+  since?: string | undefined;
+  withOdds?: boolean;
+  limit?: number;
+  offset?: number;
+  rounding?: RoundingMode;
+};
+export async function getMatches(sb: SupabaseClient, c: Client, opts: MatchOpts) {
+  const limit = opts.limit ?? 500;
+  const offset = opts.offset ?? 0;
   let q = sb
     .from("matches")
-    .select("id,sport_id,category_id,tournament_id,home_team,away_team,scheduled,status,match_minute,suspended")
+    .select("id,sport_id,category_id,tournament_id,home_team,away_team,scheduled,status,match_minute,suspended,updated_at", { count: "exact" })
     .order("scheduled")
-    .limit(500);
+    .order("id")
+    .range(offset, offset + limit - 1);
   q = scope(q, c);
   if (opts.id) q = q.eq("id", opts.id);
   if (opts.sport) q = q.eq("sport_id", opts.sport);
-  const { data: matches } = await q;
-  const list = matches ?? [];
-  if (!opts.withOdds || !list.length) return list.map((m) => ({ ...m, markets: [] }));
+  if (opts.tournament) q = q.eq("tournament_id", opts.tournament);
+  if (opts.status) q = q.eq("status", opts.status);
+  if (opts.since) q = q.gte("updated_at", opts.since);
+  const { data: matches, count } = await q;
+  const list = (matches ?? []).map(({ suspended, ...m }) => ({ ...m, _susp: suspended as boolean }));
+  const total = count ?? list.length;
+  if (!opts.withOdds || !list.length) return { total, rows: list.map(({ _susp, ...m }) => ({ ...m, markets: [] as unknown[] })) };
   const { data: odds } = await sb
     .from("match_odds")
-    .select("match_id,market,specifier,outcomes,updated_at")
+    .select("match_id,market,specifier,outcomes,updated_at,suspended")
     .eq("source", "own")
+    .eq("suspended", false)
     .in("match_id", list.map((m) => m.id));
-  return list.map((m) => ({
-    ...m,
-    markets: (odds ?? [])
-      .filter((o) => o.match_id === m.id)
-      .map((o) => ({
-        market: o.market,
-        specifier: o.specifier,
-        updated_at: o.updated_at,
-        active: !m.suspended,
-        outcomes: ((o.outcomes as Outcome[]) ?? []).map((x) => ({
-          id: x.label ?? x.name,
-          odds: applyMarkup(x.odds, c.markup_pct),
+  return {
+    total,
+    rows: list.map(({ _susp, ...m }) => ({
+      ...m,
+      markets: (odds ?? [])
+        .filter((o) => o.match_id === m.id)
+        .map((o) => ({
+          market: o.market,
+          specifier: o.specifier,
+          updated_at: o.updated_at,
+          active: !_susp,
+          outcomes: ((o.outcomes as Outcome[]) ?? [])
+            .filter((x) => typeof x.odds === "number" && x.odds > 1)
+            .map((x) => ({ id: x.label ?? x.name, odds: applyMarkup(x.odds, c.markup_pct, opts.rounding) })),
         })),
-      })),
-  }));
+    })),
+  };
 }
 
-export async function getOutrights(sb: SupabaseClient, c: Client) {
-  let q = sb.from("outrights").select("id,tournament_id,name,scheduled,status,competitors,tournaments!inner(sport_id)");
+export async function getOutrights(sb: SupabaseClient, c: Client, rounding: RoundingMode = "none") {
+  let q = sb.from("outrights").select("id,tournament_id,name,scheduled,status,competitors,tournaments!inner(sport_id)").eq("suspended", false);
   if (c.tournament_ids.length) q = q.in("tournament_id", c.tournament_ids);
   if (c.sport_ids.length) q = q.in("tournaments.sport_id", c.sport_ids);
   const { data } = await q;
@@ -132,7 +199,7 @@ export async function getOutrights(sb: SupabaseClient, c: Client) {
     ...o,
     competitors: ((o.competitors as Outcome[]) ?? []).map((x) => ({
       name: x.name,
-      odds: applyMarkup(x.odds, c.markup_pct),
+      odds: applyMarkup(x.odds, c.markup_pct, rounding),
     })),
   }));
 }
@@ -160,7 +227,7 @@ const attrs = (o: Record<string, unknown>) =>
     .join("");
 const ts = () => Date.now();
 
-export function toXml(kind: string, data: any[]): string {
+export function toXml(kind: string, data: any[], meta?: Record<string, number>): string {
   const head = `<?xml version="1.0" encoding="UTF-8"?>\n`;
   if (kind === "sports")
     return head + `<sports generated_at="${ts()}">` + data.map((s) =>
@@ -169,7 +236,7 @@ export function toXml(kind: string, data: any[]): string {
         c.tournaments.map((t: any) => `<tournament${attrs({ id: t.id, name: t.name })}/>`).join("") +
         `</category>`).join("") + `</sport>`).join("") + `</sports>`;
   if (kind === "matches" || kind === "odds")
-    return head + `<odds_change_list generated_at="${ts()}">` + data.map((m) =>
+    return head + `<odds_change_list generated_at="${ts()}"${meta ? attrs(meta) : ""}>` + data.map((m) =>
       `<sport_event${attrs({ id: m.id, scheduled: m.scheduled, status: m.status, match_minute: m.match_minute, sport_id: m.sport_id, category_id: m.category_id, tournament_id: m.tournament_id })}>` +
       `<competitors><competitor qualifier="home"${attrs({ name: m.home_team })}/><competitor qualifier="away"${attrs({ name: m.away_team })}/></competitors>` +
       (m.markets.length ? `<odds>` + m.markets.map((mk: any) =>
@@ -186,18 +253,20 @@ export function toXml(kind: string, data: any[]): string {
 
 /* ---------- Per-instance response cache (15 s) ---------- */
 const CACHE_TTL = 15_000;
-const cache = new Map<string, { at: number; body: string }>();
+const cache = new Map<string, { at: number; body: string; etag: string }>();
 
 export async function cached(key: string, build: () => Promise<string | null>) {
   const now = Date.now();
   const hit = cache.get(key);
-  if (hit && now - hit.at < CACHE_TTL) return { body: hit.body, hit: true };
+  if (hit && now - hit.at < CACHE_TTL) return { body: hit.body, etag: hit.etag, hit: true };
   const body = await build();
+  let etag = "";
   if (body !== null) {
+    etag = await etagOf(body);
     if (cache.size > 500) for (const [k, v] of cache) if (now - v.at >= CACHE_TTL) cache.delete(k);
-    cache.set(key, { at: now, body });
+    cache.set(key, { at: now, body, etag });
   }
-  return { body, hit: false };
+  return { body, etag, hit: false };
 }
 
 /** Fire-and-forget: records cache hit + response bytes for cost reporting. */

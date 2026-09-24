@@ -179,33 +179,45 @@ export type Database = {
       api_keys: {
         Row: {
           active: boolean
+          allowed_ips: string[]
           client_id: string
           created_at: string
+          expires_at: string | null
           id: string
           key_hash: string
           kind: string
+          label: string
           last_used_at: string | null
           prefix: string
+          rotated_from: string | null
         }
         Insert: {
           active?: boolean
+          allowed_ips?: string[]
           client_id: string
           created_at?: string
+          expires_at?: string | null
           id?: string
           key_hash: string
           kind?: string
+          label?: string
           last_used_at?: string | null
           prefix: string
+          rotated_from?: string | null
         }
         Update: {
           active?: boolean
+          allowed_ips?: string[]
           client_id?: string
           created_at?: string
+          expires_at?: string | null
           id?: string
           key_hash?: string
           kind?: string
+          label?: string
           last_used_at?: string | null
           prefix?: string
+          rotated_from?: string | null
         }
         Relationships: [
           {
@@ -213,6 +225,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "api_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_keys_rotated_from_fkey"
+            columns: ["rotated_from"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
             referencedColumns: ["id"]
           },
         ]

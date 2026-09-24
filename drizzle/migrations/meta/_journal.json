@@ -71,6 +71,13 @@
       "when": 1790217424826,
       "tag": "0009_feed_options_outrights",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790217961027,
+      "tag": "0010_api_keys_hardening",
+      "breakpoints": true
     }
   ]
 }

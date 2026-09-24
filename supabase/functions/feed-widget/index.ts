@@ -1,4 +1,4 @@
-import { cached, clientScopeKey, db, getMatches, overLimit, resolveKey, trackDenial, trackMeta } from "../_shared/feed.ts";
+import { cached, clientScopeKey, db, errorBody, getMatches, overLimit, rateHeaders, resolveKey, roundingMode, trackDenial, trackMeta, etagMatches, type ErrorCode } from "../_shared/feed.ts";
 
 function hostAllowed(origin: string | null, allowed: string[]) {
   if (!origin) return false;
@@ -14,39 +14,49 @@ Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
   const cors = {
     "Access-Control-Allow-Origin": origin ?? "null",
-    "Access-Control-Allow-Headers": "content-type",
+    "Access-Control-Allow-Headers": "content-type, if-none-match",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Expose-Headers": "ETag, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After",
     Vary: "Origin",
   };
-  const json = (b: unknown, s = 200) =>
-    new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
+  const fail = (code: ErrorCode, extra: Record<string, string> = {}) => {
+    const e = errorBody(code);
+    return new Response(e.body, { status: e.status, headers: { ...cors, ...extra, "Content-Type": e.type, "Cache-Control": "no-store" } });
+  };
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "GET") return fail("method_not_allowed");
   try {
     const url = new URL(req.url);
     const sb = db();
     const key = url.searchParams.get("key");
-    const client = await resolveKey(sb, key, "widget");
-    if (!client) {
-      await trackDenial(sb, null, key, "widget", "invalid_key");
-      return json({ error: "Invalid widget key" }, 401);
+    const r = await resolveKey(sb, key, "widget");
+    if (!r.ok) {
+      await trackDenial(sb, r.client, key, "widget", r.code);
+      return fail(r.code);
     }
+    const client = r.client;
     if (!hostAllowed(origin, client.allowed_domains)) {
       await trackDenial(sb, client, key, "widget", "domain_denied");
-      return json({ error: "Domain not allowed" }, 403);
+      return fail("domain_denied");
     }
-    if (await overLimit(sb, client, "widget")) {
+    const rate = await overLimit(sb, client, "widget");
+    const rh = rateHeaders(rate);
+    if (rate.limited) {
       await trackDenial(sb, client, key, "widget", "rate_limited");
-      return json({ error: "Rate limit exceeded" }, 429);
+      return fail("rate_limited", rh);
     }
     const sport = url.searchParams.get("sport") ?? undefined;
-    const { body, hit } = await cached(`widget|${clientScopeKey(client)}|${sport ?? ""}`, async () => {
-      const data = await getMatches(sb, client, { sport, withOdds: true });
-      return JSON.stringify({ data: data.filter((m: any) => m.status !== "ended" && m.status !== "closed") });
+    if (sport && sport.length > 64) return fail("param_invalid");
+    const { body, etag, hit } = await cached(`widget|${clientScopeKey(client)}|${sport ?? ""}`, async () => {
+      const { rows } = await getMatches(sb, client, { sport, withOdds: true, limit: 200, rounding: await roundingMode(sb) });
+      return JSON.stringify({ data: rows.filter((m: any) => m.status !== "ended" && m.status !== "closed") });
     });
     trackMeta(sb, client, "widget", hit, body!);
-    return new Response(body, { status: 200, headers: { ...cors, "Content-Type": "application/json" } });
+    const h = { ...cors, ...rh, ETag: etag, "Cache-Control": "private, max-age=15" };
+    if (etagMatches(req.headers.get("if-none-match"), etag)) return new Response(null, { status: 304, headers: h });
+    return new Response(body, { status: 200, headers: { ...h, "Content-Type": "application/json" } });
   } catch (e) {
     console.error(e);
-    return json({ error: "Server error" }, 500);
+    return fail("server_error");
   }
 });
