@@ -11,7 +11,7 @@ import {
   verifyChallenge,
 } from "../_shared/auth-core.ts";
 
-const MAX_FAILS = 5;
+const MAX_FAILS: Record<string, number> = { c: 5, ip: 30, u: 20 };
 const LOCK_MS = 15 * 60_000;
 
 const json = (data: unknown, status = 200) =>
@@ -36,7 +36,12 @@ const admin = createClient(URL_, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
 });
 
 function clientIp(req: Request) {
-  return (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
+  // x-real-ip is set by the own nginx proxy; fall back to the platform's first forwarded hop.
+  return (
+    req.headers.get("x-real-ip")?.trim() ||
+    (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
+    "unknown"
+  );
 }
 
 async function lockedUntil(keys: string[]) {
@@ -53,7 +58,7 @@ async function registerFail(keys: string[]) {
   const now = new Date();
   for (const key of keys) {
     const count = (data?.find((r) => r.key === key)?.count ?? 0) + 1;
-    const lock = count >= MAX_FAILS;
+    const lock = count >= (MAX_FAILS[key.split(":")[0]] ?? 5);
     await admin.from("login_attempts").upsert({
       key,
       count: lock ? 0 : count,
@@ -84,7 +89,9 @@ Deno.serve(async (req) => {
     if (!parsed.success) return json({ error: "invalid_input" }, 400);
     const { username, password, token, answer } = parsed.data;
 
-    const keys = [`u:${username}`, `ip:${clientIp(req)}`];
+    const ip = clientIp(req);
+    // c = username+IP (5), u = username overall (20), ip = IP overall (30)
+    const keys = [`c:${username}|${ip}`, `u:${username}`, `ip:${ip}`];
     const locked = await lockedUntil(keys);
     if (locked) return json({ error: "locked", retry_after: Math.ceil((locked - Date.now()) / 1000) }, 429);
 
@@ -118,7 +125,7 @@ Deno.serve(async (req) => {
       return json({ error: "invalid_credentials" }, 401);
     }
 
-    await admin.from("login_attempts").delete().eq("key", keys[0]);
+    await admin.from("login_attempts").delete().in("key", [keys[0], keys[1]]);
     return json({ access_token: data.session.access_token, refresh_token: data.session.refresh_token });
   } catch (e) {
     console.error(e);

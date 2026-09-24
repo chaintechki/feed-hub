@@ -3,6 +3,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 import { db, sha256 } from "../_shared/feed.ts";
 import { isValidIpRule } from "../_shared/api-core.ts";
+import { originAllowed, overUserLimit } from "../_shared/guard.ts";
 
 const Id = z.string().uuid();
 const ClientFields = z.object({
@@ -43,6 +44,7 @@ function randomKey() {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (!originAllowed(req)) return json({ error: "Forbidden origin" }, 403);
   try {
     const auth = req.headers.get("Authorization");
     if (!auth?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
@@ -58,6 +60,8 @@ Deno.serve(async (req) => {
 
     const p = Body.safeParse(await req.json());
     if (!p.success) return json({ error: p.error.flatten().fieldErrors }, 400);
+    if (p.data.action !== "list" && (await overUserLimit(sb, me, "api-clients-admin", 30)))
+      return json({ error: "rate_limited" }, 429);
     const b = p.data;
     const audit = (action: string, id: string, details: Record<string, unknown> = {}) =>
       sb.from("audit_log").insert({ user_id: me, action, entity: "api_client", entity_id: id, details });
