@@ -183,3 +183,29 @@ export function toXml(kind: string, data: any[]): string {
   return head + `<bet_settlement_list generated_at="${ts()}">` + data.map((r) =>
     `<bet_settlement${attrs({ event_id: r.match_id, settled_at: r.settled_at })}><market${attrs({ id: r.market, specifiers: r.specifier })}><outcome${attrs({ id: r.outcome, result: 1 })}/></market></bet_settlement>`).join("") + `</bet_settlement_list>`;
 }
+
+/* ---------- Per-instance response cache (15 s) ---------- */
+const CACHE_TTL = 15_000;
+const cache = new Map<string, { at: number; body: string }>();
+
+export async function cached(key: string, build: () => Promise<string | null>) {
+  const now = Date.now();
+  const hit = cache.get(key);
+  if (hit && now - hit.at < CACHE_TTL) return { body: hit.body, hit: true };
+  const body = await build();
+  if (body !== null) {
+    if (cache.size > 500) for (const [k, v] of cache) if (now - v.at >= CACHE_TTL) cache.delete(k);
+    cache.set(key, { at: now, body });
+  }
+  return { body, hit: false };
+}
+
+/** Fire-and-forget: records cache hit + response bytes for cost reporting. */
+export function trackMeta(sb: SupabaseClient, c: Client, endpoint: string, hit: boolean, body: string) {
+  void sb
+    .rpc("api_track_meta", { _client: c.id, _endpoint: endpoint, _cache_hit: hit, _bytes: new TextEncoder().encode(body).length })
+    .then(() => {}, () => {});
+}
+
+export const clientScopeKey = (c: Client) =>
+  `${c.id}|${c.markup_pct}|${c.sport_ids.join(",")}|${c.tournament_ids.join(",")}`;
