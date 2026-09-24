@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     const horizon = Date.now() + 3 * 86_400_000;
     const events: any[] = [];
     let next: number | null = start;
-    while (Date.now() - started < 90_000) {
+    while (Date.now() - started < 70_000) {
       let x: any = null;
       for (let a = 0; a < 3 && !x; a++) x = await uofGet(`/sports/en/schedules/pre/schedule.xml?start=${start}&limit=100`).catch(() => null);
       if (!x) break;
@@ -68,7 +68,8 @@ Deno.serve(async (req) => {
         outcomes: (m.outcomes?.outcome ?? []).map((o: any) => ({ id: String(o.id), name: o.name })),
         specifiers: (m.specifiers?.specifier ?? []).map((s: any) => s.name).join("|") || null,
       }));
-      for (let i = 0; i < rows.length; i += 500) { const { error } = await sb.from("uof_markets").upsert(rows.slice(i, i + 500), { onConflict: "id,variant" }); if (error) throw new Error(`markets: ${error.message}`); }
+      const uniq = [...new Map(rows.map((r: any) => [`${r.id}|${r.variant}`, r])).values()];
+      for (let i = 0; i < uniq.length; i += 500) { const { error } = await sb.from("uof_markets").upsert(uniq.slice(i, i + 500), { onConflict: "id,variant" }); if (error) throw new Error(`markets: ${error.message}`); }
       result.markets = rows.length;
     }
     result.ms = Date.now() - started;
