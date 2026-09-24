@@ -333,7 +333,7 @@ export function ApiClients() {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label className="text-[11px] uppercase">{t("api.markup")} %</Label>
-                    <Input type="number" min={0} max={50} step={0.5} value={edit.f.markup_pct} onChange={(e) => setEdit({ ...edit, f: { ...edit.f, markup_pct: Number(e.target.value) } })} className="h-8" />
+                    <Input type="number" min={-50} max={50} step={0.5} value={edit.f.markup_pct} onChange={(e) => setEdit({ ...edit, f: { ...edit.f, markup_pct: Number(e.target.value) } })} className="h-8" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[11px] uppercase">{t("api.limit")} / min</Label>
