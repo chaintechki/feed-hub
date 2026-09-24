@@ -480,6 +480,11 @@ export function ApiClients() {
           {newKey && (
             <div className="space-y-3 text-[11px]">
               <p className="font-semibold text-warning">{t("api.onceHint")}</p>
+              {newKey.oldExpires && (
+                <p className="text-muted-foreground">
+                  {t("api.rotatedHint")} {new Date(newKey.oldExpires).toLocaleString()}
+                </p>
+              )}
               <div className="flex gap-2">
                 <Input readOnly value={newKey.key} className="h-8 font-mono text-[11px]" />
                 <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => copy(newKey.key)}>
