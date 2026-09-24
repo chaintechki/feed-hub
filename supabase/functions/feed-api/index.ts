@@ -16,6 +16,7 @@ import {
   toXml,
   trackDenial,
   trackMeta,
+  etagMatches,
   type ErrorCode,
 } from "../_shared/feed.ts";
 
@@ -93,8 +94,8 @@ Deno.serve(async (req) => {
     const sport = p.get("sport") ?? undefined;
     const tournament = p.get("tournament") ?? undefined;
     const bad =
-      !Number.isInteger(limit) || limit < 1 || limit > 500 ? "limit must be 1–500."
-      : !Number.isInteger(offset) || offset < 0 || offset > 100000 ? "offset must be ≥ 0."
+      !Number.isInteger(limit) || limit < 1 || limit > 500 ? "limit must be 1-500."
+      : !Number.isInteger(offset) || offset < 0 || offset > 100000 ? "offset must be >= 0."
       : since && Number.isNaN(Date.parse(since)) ? "since must be an ISO date-time."
       : status && !STATUSES.has(status) ? `status must be one of ${[...STATUSES].join(", ")}.`
       : [sport, tournament].some((v) => v && v.length > 64) ? "sport/tournament id too long."
@@ -149,7 +150,7 @@ Deno.serve(async (req) => {
       return fail("not_found", xml, rh);
     }
     trackMeta(sb, client, kind, hit, body);
-    if (req.headers.get("if-none-match") === etag) return send(null, 304, "", { ...rh, ETag: etag });
+    if (etagMatches(req.headers.get("if-none-match"), etag)) return send(null, 304, "", { ...rh, ETag: etag });
     return send(body, 200, xml ? "application/xml; charset=utf-8" : "application/json", { ...rh, ETag: etag });
   } catch (e) {
     console.error(e);

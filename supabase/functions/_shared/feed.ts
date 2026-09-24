@@ -61,8 +61,12 @@ export function errorBody(code: ErrorCode, xml = false, detail?: string) {
   const message = detail ? `${msg} ${detail}` : msg;
   return xml
     ? { status, type: "application/xml; charset=utf-8", body: `<?xml version="1.0" encoding="UTF-8"?>\n<error code="${code}">${esc(message)}</error>` }
-    : { status, type: "application/json", body: JSON.stringify({ error: { code, message } }) };
+    : { status, type: "application/json; charset=utf-8", body: JSON.stringify({ error: { code, message } }) };
 }
+
+/** Proxies may weaken ETags (W/"…"); compare the opaque part. */
+export const etagMatches = (header: string | null, etag: string) =>
+  !!header && header.split(",").some((h) => h.trim().replace(/^W\//, "") === etag.replace(/^W\//, ""));
 
 export async function etagOf(body: string) {
   const buf = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(body));

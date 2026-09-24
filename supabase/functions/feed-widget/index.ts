@@ -1,4 +1,4 @@
-import { cached, clientScopeKey, db, errorBody, getMatches, overLimit, rateHeaders, resolveKey, roundingMode, trackDenial, trackMeta, type ErrorCode } from "../_shared/feed.ts";
+import { cached, clientScopeKey, db, errorBody, getMatches, overLimit, rateHeaders, resolveKey, roundingMode, trackDenial, trackMeta, etagMatches, type ErrorCode } from "../_shared/feed.ts";
 
 function hostAllowed(origin: string | null, allowed: string[]) {
   if (!origin) return false;
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     });
     trackMeta(sb, client, "widget", hit, body!);
     const h = { ...cors, ...rh, ETag: etag, "Cache-Control": "private, max-age=15" };
-    if (req.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers: h });
+    if (etagMatches(req.headers.get("if-none-match"), etag)) return new Response(null, { status: 304, headers: h });
     return new Response(body, { status: 200, headers: { ...h, "Content-Type": "application/json" } });
   } catch (e) {
     console.error(e);
