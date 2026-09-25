@@ -87,17 +87,24 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
       };
       const now = Date.now();
       const ago = (h: number) => new Date(now - h * 3600_000).toISOString();
-      const [liveRes, upRes] = await Promise.all([
-        scope(supabase.from("matches").select(cols).in("status", ["live", "suspended", "interrupted"]).gte("scheduled", ago(12)))
-          .order("scheduled")
-          .limit(200),
-        scope(supabase.from("matches").select(cols).gte("scheduled", ago(3)).not("status", "in", "(ended,closed,cancelled,abandoned,postponed)"))
-          .order("scheduled")
-          .limit(500),
-      ]);
-      if (liveRes.error) throw liveRes.error;
-      if (upRes.error) throw upRes.error;
-      const rows = [...new Map([...(liveRes.data ?? []), ...(upRes.data ?? [])].map((r) => [r.id, r as DbMatch])).values()];
+      const PAGE_SIZE = 1000;
+      const fetchPages = async (kind: "live" | "upcoming") => {
+        const found: DbMatch[] = [];
+        for (let from = 0; ; from += PAGE_SIZE) {
+          let query = scope(supabase.from("matches").select(cols));
+          query = kind === "live"
+            ? query.in("status", ["live", "suspended", "interrupted"]).gte("scheduled", ago(12))
+            : query.gte("scheduled", ago(3)).not("status", "in", "(ended,closed,cancelled,abandoned,postponed)");
+          const { data, error } = await query.order("scheduled").range(from, from + PAGE_SIZE - 1);
+          if (error) throw error;
+          const page = (data ?? []) as DbMatch[];
+          found.push(...page);
+          if (page.length < PAGE_SIZE) break;
+        }
+        return found;
+      };
+      const [liveRows, upcomingRows] = await Promise.all([fetchPages("live"), fetchPages("upcoming")]);
+      const rows = [...new Map([...liveRows, ...upcomingRows].map((row) => [row.id, row])).values()];
       if (!rows.length) return [];
 
       const ids = rows.map((r) => r.id);
