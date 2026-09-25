@@ -169,11 +169,19 @@ if [ "${SKIP_PULL:-0}" != "1" ]; then
   log "Updating source (branch $BRANCH)"
   [ -d .git ] || die "$ROOT is not a git repository. Clone it first."
   git config --global --add safe.directory "$ROOT" >/dev/null 2>&1 || true
-  # package.json is changed locally by the version bump; discard before pulling.
-  git checkout -- package.json package-lock.json 2>/dev/null || true
+  # Local edits (e.g. version bump, manual npm install) must never block the pull.
+  # Back them up, then reset every tracked file to the last commit.
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    BACKUP="$STATE_DIR/local-changes-$(date +%Y%m%d%H%M%S).patch"
+    mkdir -p "$STATE_DIR"
+    { git diff; git diff --cached; } > "$BACKUP" 2>/dev/null || true
+    log "Local changes detected - backup saved to $BACKUP, discarding them"
+    git reset --hard HEAD >/dev/null 2>&1 || true
+  fi
   git fetch --prune origin
   git checkout "$BRANCH"
-  git pull --ff-only origin "$BRANCH"
+  git reset --hard "origin/$BRANCH" >/dev/null
+  echo "    Commit: $(git rev-parse --short HEAD)"
   echo "    Commit: $(git rev-parse --short HEAD)"
 fi
 
