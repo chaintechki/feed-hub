@@ -16,7 +16,7 @@ describe("cache metrics", () => {
     expect(s[1]).toMatchObject({ source: "uof-ingest", hitPct: 0, avgLoadMs: 25 });
   });
   it("returns null rates without traffic", () => {
-    expect(summarizeCache([row({})])[0].hitPct).toBeNull();
+    expect(summarizeCache([row({})])[0]?.hitPct).toBeNull();
     expect(hasData(emptyCounters())).toBe(false);
   });
   it("buckets hourly", () => {
