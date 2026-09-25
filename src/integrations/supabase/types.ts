@@ -306,29 +306,41 @@ export type Database = {
       audit_log: {
         Row: {
           action: string
+          actor_role: string | null
           created_at: string
           details: Json | null
           entity: string | null
           entity_id: string | null
+          hash: string | null
           id: string
+          prev_hash: string | null
+          seq: number | null
           user_id: string | null
         }
         Insert: {
           action: string
+          actor_role?: string | null
           created_at?: string
           details?: Json | null
           entity?: string | null
           entity_id?: string | null
+          hash?: string | null
           id?: string
+          prev_hash?: string | null
+          seq?: number | null
           user_id?: string | null
         }
         Update: {
           action?: string
+          actor_role?: string | null
           created_at?: string
           details?: Json | null
           entity?: string | null
           entity_id?: string | null
+          hash?: string | null
           id?: string
+          prev_hash?: string | null
+          seq?: number | null
           user_id?: string | null
         }
         Relationships: []
@@ -1410,8 +1422,38 @@ export type Database = {
         }
         Returns: undefined
       }
+      audit_hash: {
+        Args: {
+          _action: string
+          _at: string
+          _details: Json
+          _entity: string
+          _entity_id: string
+          _prev: string
+          _seq: number
+          _user: string
+        }
+        Returns: string
+      }
+      audit_verify: {
+        Args: never
+        Returns: {
+          broken_seq: number
+          checked: number
+          ok: boolean
+        }[]
+      }
       can_see_api_client: {
         Args: { _client: string; _user: string }
+        Returns: boolean
+      }
+      can_see_audit: {
+        Args: {
+          _actor: string
+          _entity: string
+          _entity_id: string
+          _user: string
+        }
         Returns: boolean
       }
       has_role: {
@@ -1426,6 +1468,7 @@ export type Database = {
         Args: { _client: string; _user: string }
         Returns: boolean
       }
+      top_role: { Args: { _user: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "trader" | "viewer" | "super_admin"

@@ -134,6 +134,13 @@
       "when": 1790276038297,
       "tag": "0018_market_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790369331847,
+      "tag": "0019_audit_log_tamper_proof",
+      "breakpoints": true
     }
   ]
 }
