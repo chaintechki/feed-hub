@@ -2,13 +2,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { ActiveFilterChips } from "@/components/monitoring/ActiveFilterChips";
 import { FilterBar } from "@/components/monitoring/FilterBar";
 import { MatchGrid } from "@/components/monitoring/MatchGrid";
 import { MonitorSubBar } from "@/components/monitoring/MonitorSubBar";
 import { SportTree, type TreeSelection } from "@/components/monitoring/SportTree";
 import { supabase } from "@/integrations/supabase/client";
 import { useMatches, useSportTree } from "@/lib/feed/queries";
-import { matchesMonitorFilters, readMonitorFilters } from "@/lib/feed/filters";
+import { activeFilterChips, matchesMonitorFilters, readMonitorFilters, type ActiveChip } from "@/lib/feed/filters";
 import type { LeagueTab, MatchRow, MonitorFilters } from "@/lib/feed/types";
 import { friendlyError } from "@/lib/errors";
 
@@ -42,6 +43,36 @@ export default function MonitorMatches() {
   const filtered = useMemo(() => {
     return matches.filter((match) => matchesMonitorFilters(match, filters, term)).slice(0, 500);
   }, [matches, filters, term]);
+
+  const chips = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const sport of tree) {
+      names.set(sport.id, sport.name);
+      for (const cat of sport.categories) {
+        names.set(cat.id, cat.name);
+        for (const tour of cat.tournaments) names.set(tour.id, tour.name);
+      }
+    }
+    const tab = tabs.find((x) => x.id === activeTab) ?? null;
+    return activeFilterChips(filters, term, selection, names, tab);
+  }, [tree, tabs, activeTab, filters, term, selection]);
+
+  function removeChip(c: ActiveChip) {
+    if (c.kind === "flag") setFilters({ ...filters, [c.key]: false });
+    else if (c.kind === "term") setTerm("");
+    else if (c.kind === "tab") setActiveTab(null);
+    else {
+      const k = c.kind === "sport" ? "sportIds" : c.kind === "category" ? "categoryIds" : "tournamentIds";
+      setSelection({ ...selection, [k]: selection[k].filter((id) => id !== c.id) });
+    }
+  }
+
+  function clearAll() {
+    setFilters({});
+    setTerm("");
+    setActiveTab(null);
+    setSelection({ sportIds: [], categoryIds: [], tournamentIds: [] });
+  }
 
   useEffect(() => {
     localStorage.setItem("fp.monitorFilters", JSON.stringify(filters));
@@ -91,6 +122,7 @@ export default function MonitorMatches() {
         <SportTree selection={selection} onSelectionChange={setSelection} />
         <div className="flex min-h-0 flex-1 flex-col">
           <FilterBar filters={filters} onChange={setFilters} term={term} onTermChange={setTerm} />
+          <ActiveFilterChips chips={chips} onRemove={removeChip} onClearAll={clearAll} />
           <MatchGrid
             matches={filtered}
             isLoading={isLoading}

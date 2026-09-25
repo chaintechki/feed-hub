@@ -226,6 +226,8 @@ export function MatchGrid({
               return (
                 <div
                   key={m.id}
+                  data-testid="match-row"
+                  data-match-id={m.id}
                   className="grid grid-cols-[420px_180px_1fr_1fr_1fr] border-b border-border hover:bg-row-hover"
                 >
                   {/* match cell spanning both odds rows */}

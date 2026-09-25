@@ -11,12 +11,14 @@ export function MonitorSubBar({
   onActivate,
   onClose,
   onAdd,
+  hideTabs = false,
 }: {
   tabs: LeagueTab[];
   activeTab: string | null;
   onActivate: (id: string | null) => void;
   onClose: (id: string) => void;
   onAdd: () => void;
+  hideTabs?: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -36,8 +38,11 @@ export function MonitorSubBar({
       <NavLink to="/monitoring/outrights" className={linkClass}>
         {t("nav.monitorOutrights")}
       </NavLink>
+      <NavLink to="/monitoring/assistant" className={linkClass}>
+        {t("nav.monitorAssistant")}
+      </NavLink>
 
-      <div className="ml-auto flex items-stretch">
+      {!hideTabs && <div className="ml-auto flex items-stretch">
         <button
           onClick={onAdd}
           className="flex w-8 items-center justify-center text-muted-foreground hover:text-foreground"
@@ -58,7 +63,7 @@ export function MonitorSubBar({
             </button>
           </div>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }

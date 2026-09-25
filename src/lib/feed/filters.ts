@@ -1,4 +1,4 @@
-import type { MatchRow, MonitorFilters } from "./types";
+import { MONITOR_FILTER_KEYS, type MatchRow, type MonitorFilters } from "./types";
 
 export function hasUsableOdds(match: MatchRow, source?: "own" | "average") {
   return match.odds.some(
@@ -48,4 +48,28 @@ export function readMonitorFilters(storage: Pick<Storage, "getItem"> | undefined
   } catch {
     return {};
   }
+}
+
+export type ActiveChip =
+  | { kind: "flag"; key: import("./types").MonitorFilterKey }
+  | { kind: "term"; value: string }
+  | { kind: "sport" | "category" | "tournament"; id: string; name: string }
+  | { kind: "tab"; id: string; name: string };
+
+/** Every active monitoring filter as a removable chip, in display order. */
+export function activeFilterChips(
+  filters: MonitorFilters,
+  term: string,
+  selection: { sportIds: string[]; categoryIds: string[]; tournamentIds: string[] },
+  names: Map<string, string>,
+  activeTab: { id: string; name: string } | null = null,
+): ActiveChip[] {
+  const chips: ActiveChip[] = [];
+  for (const key of MONITOR_FILTER_KEYS) if (filters[key]) chips.push({ kind: "flag", key });
+  if (term.trim()) chips.push({ kind: "term", value: term.trim() });
+  for (const id of selection.sportIds) chips.push({ kind: "sport", id, name: names.get(id) ?? id });
+  for (const id of selection.categoryIds) chips.push({ kind: "category", id, name: names.get(id) ?? id });
+  for (const id of selection.tournamentIds) chips.push({ kind: "tournament", id, name: names.get(id) ?? id });
+  if (activeTab) chips.push({ kind: "tab", ...activeTab });
+  return chips;
 }

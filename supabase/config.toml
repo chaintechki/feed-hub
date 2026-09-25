@@ -10,3 +10,6 @@ verify_jwt = false
 
 [functions.uof-sync]
 verify_jwt = false
+
+[functions.feed-assistant]
+verify_jwt = false
