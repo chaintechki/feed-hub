@@ -3,23 +3,37 @@
 import { db } from "../_shared/feed.ts";
 import type { CatalogEntry } from "../_shared/markets.ts";
 import { eventStatus, fetchFixture, MARKET_MAP, mapMarket, parser, verifySigned } from "../_shared/uof.ts";
+import { cacheHit, cacheLoad, cacheMiss, flushCacheStats, setCacheSource } from "../_shared/cache-stats.ts";
 
 // Only the market group is needed here; cache it per instance and load just the ids a batch references.
+setCacheSource("uof-ingest");
 const groupCache = new Map<number, string>();
 async function groupsFor(sb: any, parsed: any[]): Promise<Map<number, CatalogEntry>> {
   const need = new Set<number>();
+  let hits = 0;
   for (const p of parsed) for (const v of Object.values(p ?? {}) as any[]) {
     for (const mk of [...(v?.odds?.market ?? []), ...(v?.outcomes?.market ?? []), ...(v?.market ?? [])]) {
       const id = Number(mk?.id);
-      if (id && !MARKET_MAP[id] && !groupCache.has(id)) need.add(id);
+      if (!id || MARKET_MAP[id]) continue;
+      if (groupCache.has(id)) hits++;
+      else need.add(id);
     }
   }
+  if (hits) cacheHit();
   const ids = [...need];
-  for (let i = 0; i < ids.length; i += 300) {
-    const { data } = await sb.from("uof_markets").select("id,market_group").eq("variant", "").in("id", ids.slice(i, i + 300));
-    for (const r of data ?? []) groupCache.set(r.id, r.market_group);
-    for (const id of ids.slice(i, i + 300)) if (!groupCache.has(id)) groupCache.set(id, "other");
+  if (ids.length) {
+    cacheMiss();
+    const t0 = performance.now();
+    let reads = 0;
+    for (let i = 0; i < ids.length; i += 300) {
+      reads++;
+      const { data } = await sb.from("uof_markets").select("id,market_group").eq("variant", "").in("id", ids.slice(i, i + 300));
+      for (const r of data ?? []) groupCache.set(r.id, r.market_group);
+      for (const id of ids.slice(i, i + 300)) if (!groupCache.has(id)) groupCache.set(id, "other");
+    }
+    cacheLoad(performance.now() - t0, reads, groupCache.size);
   }
+  flushCacheStats(sb);
   const m = new Map<number, CatalogEntry>();
   for (const [id, group] of groupCache) m.set(id, { group } as CatalogEntry);
   return m;

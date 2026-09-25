@@ -1,3 +1,4 @@
+import { setCacheSource } from "../_shared/cache-stats.ts";
 import {
   buildOpenApi,
   cached,
@@ -42,6 +43,7 @@ const fail = (code: ErrorCode, xml = false, extra: Record<string, string> = {}, 
 const ENDPOINTS = "/me, /sports, /matches, /matches/{id}/odds, /outrights, /results, /markets, /openapi.json";
 const STATUSES = new Set(["not_started", "live", "ended", "closed"]);
 
+setCacheSource("feed-api");
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "GET") return fail("method_not_allowed");
