@@ -1,5 +1,6 @@
 import type { Session, User } from "@supabase/supabase-js";
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,9 +20,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
+  const lastUser = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+      const uid = next?.user?.id ?? null;
+      // Drop every cached result when the signed-in user changes, so no data of the previous user is ever shown.
+      if (lastUser.current !== undefined && lastUser.current !== uid) qc.clear();
+      lastUser.current = uid;
       setSession(next);
       if (!next) setRoles([]);
     });

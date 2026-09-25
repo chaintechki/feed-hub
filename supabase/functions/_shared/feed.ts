@@ -112,29 +112,80 @@ export async function trackDenial(
 type Outcome = { label?: string; name?: string; odds: number };
 export const applyMarkup = (odds: number, pct: number, mode: RoundingMode = "none") => priceOdds(odds, pct, mode);
 
-function scope<T extends { eq: any; in: any }>(q: T, c: Client, sportCol = "sport_id", tourCol = "tournament_id"): T {
-  let r: any = q;
-  if (c.sport_ids.length) r = r.in(sportCol, c.sport_ids);
-  if (c.tournament_ids.length) r = r.in(tourCol, c.tournament_ids);
-  return r;
+const CHUNK = 150;
+const chunks = <T,>(xs: T[], n = CHUNK): T[][] => {
+  const out: T[][] = [];
+  for (let i = 0; i < xs.length; i += n) out.push(xs.slice(i, i + n));
+  return out;
+};
+function must<T>(r: { data: T | null; error: unknown; count?: number | null }): { data: T; count: number | null } {
+  if (r.error) throw new Error(`query_failed: ${(r.error as { message?: string }).message ?? String(r.error)}`);
+  return { data: (r.data ?? []) as T, count: r.count ?? null };
+}
+
+type Scope = { sports: string[]; tours: string[] };
+const scopeCache = new Map<string, { at: number; s: Scope }>();
+/** Normalizes a client's release: full releases become "no filter"; tournament filter makes the sport filter redundant. */
+async function effectiveScope(sb: SupabaseClient, c: Client): Promise<Scope> {
+  const key = `${c.id}|${c.sport_ids.length}|${c.tournament_ids.length}|${c.sport_ids.join(",")}|${c.tournament_ids.join(",")}`;
+  const hit = scopeCache.get(key);
+  if (hit && Date.now() - hit.at < 300_000) return hit.s;
+  let sports = [...new Set(c.sport_ids)];
+  let tours = [...new Set(c.tournament_ids)];
+  if (sports.length) {
+    const { count } = must(await sb.from("sports").select("id", { count: "exact", head: true }));
+    if (count !== null && sports.length >= count) sports = [];
+  }
+  if (tours.length) {
+    let total = 0;
+    if (sports.length) {
+      for (const part of chunks(sports)) total += must(await sb.from("tournaments").select("id", { count: "exact", head: true }).in("sport_id", part)).count ?? 0;
+    } else total = must(await sb.from("tournaments").select("id", { count: "exact", head: true })).count ?? Infinity;
+    if (tours.length >= total) tours = [];
+  }
+  const s = { sports, tours };
+  scopeCache.set(key, { at: Date.now(), s });
+  if (scopeCache.size > 500) scopeCache.clear();
+  return s;
+}
+/** Picks the single narrowest filter (column + id list), or null for full release. */
+function scopeFilter(s: Scope, sportCol: string, tourCol: string): { col: string; ids: string[] } | null {
+  if (s.tours.length) return { col: tourCol, ids: s.tours };
+  if (s.sports.length) return { col: sportCol, ids: s.sports };
+  return null;
+}
+/** Runs `build` once per id chunk (or once without filter) and concatenates rows. */
+async function scoped<R>(f: { col: string; ids: string[] } | null, build: (ids: string[] | null) => PromiseLike<{ data: R[] | null; error: unknown; count?: number | null }>) {
+  const parts = f ? chunks(f.ids) : [null];
+  const res = await Promise.all(parts.map((ids) => build(ids)));
+  let count = 0;
+  const rows: R[] = [];
+  for (const r of res) { const m = must(r); rows.push(...m.data); count += m.count ?? m.data.length; }
+  return { rows, count };
 }
 
 export async function getSports(sb: SupabaseClient, c: Client) {
-  let s = sb.from("sports").select("id,name").order("sort_order");
-  if (c.sport_ids.length) s = s.in("id", c.sport_ids);
-  let cat = sb.from("categories").select("id,sport_id,name,country_code");
-  if (c.sport_ids.length) cat = cat.in("sport_id", c.sport_ids);
-  let t = sb.from("tournaments").select("id,category_id,sport_id,name");
-  t = scope(t, c, "sport_id", "id");
-  const [a, b, d] = await Promise.all([s, cat, t]);
-  const tours = d.data ?? [];
+  const sc = await effectiveScope(sb, c);
+  const sportF = sc.sports.length ? { col: "id", ids: sc.sports } : null;
+  const catF = sc.sports.length ? { col: "sport_id", ids: sc.sports } : null;
+  const tourF = scopeFilter(sc, "sport_id", "id");
+  const [a, b, d] = await Promise.all([
+    scoped(sportF, (ids) => { const q = sb.from("sports").select("id,name,sort_order"); return ids ? q.in("id", ids) : q; }),
+    scoped(catF, (ids) => { const q = sb.from("categories").select("id,sport_id,name,country_code"); return ids ? q.in("sport_id", ids) : q; }),
+    scoped(tourF, (ids) => { const q = sb.from("tournaments").select("id,category_id,sport_id,name"); return ids ? q.in(tourF!.col, ids) : q; }),
+  ]);
+  const tours = d.rows as { id: string; category_id: string; sport_id: string; name: string }[];
   const catIds = new Set(tours.map((x) => x.category_id));
-  return (a.data ?? []).map((sp) => ({
-    ...sp,
-    categories: (b.data ?? [])
-      .filter((x) => x.sport_id === sp.id && (!c.tournament_ids.length || catIds.has(x.id)))
-      .map((x) => ({ ...x, tournaments: tours.filter((y) => y.category_id === x.id) })),
-  }));
+  const sportIds = sc.tours.length ? new Set(tours.map((x) => x.sport_id)) : null;
+  return (a.rows as { id: string; name: string; sort_order: number }[])
+    .filter((sp) => !sportIds || sportIds.has(sp.id))
+    .sort((x, y) => x.sort_order - y.sort_order)
+    .map(({ sort_order: _o, ...sp }) => ({
+      ...sp,
+      categories: (b.rows as { id: string; sport_id: string; name: string; country_code: string | null }[])
+        .filter((x) => x.sport_id === sp.id && (!sc.tours.length || catIds.has(x.id)))
+        .map((x) => ({ ...x, tournaments: tours.filter((y) => y.category_id === x.id) })),
+    }));
 }
 
 export type MatchOpts = {
@@ -153,28 +204,42 @@ export type MatchOpts = {
 export async function getMatches(sb: SupabaseClient, c: Client, opts: MatchOpts) {
   const limit = opts.limit ?? 500;
   const offset = opts.offset ?? 0;
-  let q = sb
-    .from("matches")
-    .select("id,sport_id,category_id,tournament_id,home_team,away_team,scheduled,status,match_minute,suspended,updated_at", { count: "exact" })
-    .order("scheduled")
-    .order("id")
-    .range(offset, offset + limit - 1);
-  q = scope(q, c);
-  if (opts.id) q = q.eq("id", opts.id);
-  if (opts.sport) q = q.eq("sport_id", opts.sport);
-  if (opts.tournament) q = q.eq("tournament_id", opts.tournament);
-  if (opts.status) q = q.eq("status", opts.status);
-  if (opts.since) q = q.gte("updated_at", opts.since);
-  const { data: matches, count } = await q;
-  const list = (matches ?? []).map(({ suspended, ...m }) => ({ ...m, _susp: suspended as boolean }));
-  const total = count ?? list.length;
+  const sc = await effectiveScope(sb, c);
+  const f = scopeFilter(sc, "sport_id", "tournament_id");
+  const multi = !!f && f.ids.length > CHUNK;
+  const res = await scoped(f, (ids) => {
+    let q: any = sb
+      .from("matches")
+      .select("id,sport_id,category_id,tournament_id,home_team,away_team,scheduled,status,match_minute,suspended,updated_at", { count: "exact" })
+      .order("scheduled")
+      .order("id")
+      .range(multi ? 0 : offset, offset + limit - 1);
+    if (ids) q = q.in(f!.col, ids);
+    if (opts.id) q = q.eq("id", opts.id);
+    if (opts.sport) q = q.eq("sport_id", opts.sport);
+    if (opts.tournament) q = q.eq("tournament_id", opts.tournament);
+    if (opts.status) q = q.eq("status", opts.status);
+    if (opts.since) q = q.gte("updated_at", opts.since);
+    return q;
+  });
+  type M = { id: string; scheduled: string; suspended: boolean; home_team: string; away_team: string } & Record<string, unknown>;
+  let matches = res.rows as M[];
+  if (multi) {
+    matches.sort((x, y) => (x.scheduled < y.scheduled ? -1 : x.scheduled > y.scheduled ? 1 : x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+    matches = matches.slice(offset, offset + limit);
+  }
+  const list = matches.map(({ suspended, ...m }) => ({ ...m, _susp: suspended as boolean }));
+  const total = res.count;
   if (!opts.withOdds || !list.length) return { total, rows: list.map(({ _susp, ...m }) => ({ ...m, markets: [] as unknown[] })) };
-  const { data: odds } = await sb
-    .from("match_odds")
-    .select("match_id,market,specifier,outcomes,updated_at,suspended,market_group")
-    .eq("source", "own")
-    .eq("suspended", false)
-    .in("match_id", list.map((m) => m.id));
+  const oddsRes = await scoped({ col: "match_id", ids: list.map((m) => m.id) }, (ids) =>
+    sb
+      .from("match_odds")
+      .select("match_id,market,specifier,outcomes,updated_at,suspended,market_group")
+      .eq("source", "own")
+      .eq("suspended", false)
+      .in("match_id", ids!),
+  );
+  const odds = oddsRes.rows as { match_id: string; market: string; specifier: string | null; outcomes: unknown; updated_at: string; market_group: string }[];
   const allowed = (c.market_groups ?? []).length ? new Set(c.market_groups) : null;
   const wanted = opts.groups?.length ? new Set(opts.groups) : null;
   const cat = await catalog(sb).catch(() => new Map());
@@ -183,7 +248,7 @@ export async function getMatches(sb: SupabaseClient, c: Client, opts: MatchOpts)
     total,
     rows: list.map(({ _susp, ...m }) => ({
       ...m,
-      markets: (odds ?? [])
+      markets: odds
         .filter((o) => o.match_id === m.id && (!allowed || allowed.has(o.market_group)) && (!wanted || wanted.has(o.market_group)))
         .map((o) => {
           const uid = uofIdOf(o.market);
@@ -229,11 +294,13 @@ export async function getMarkets(sb: SupabaseClient, c: Client, lang: "en" | "de
 }
 
 export async function getOutrights(sb: SupabaseClient, c: Client, rounding: RoundingMode = "none") {
-  let q = sb.from("outrights").select("id,tournament_id,name,scheduled,status,competitors,tournaments!inner(sport_id)").eq("suspended", false);
-  if (c.tournament_ids.length) q = q.in("tournament_id", c.tournament_ids);
-  if (c.sport_ids.length) q = q.in("tournaments.sport_id", c.sport_ids);
-  const { data } = await q;
-  return (data ?? []).map(({ tournaments: _t, ...o }: any) => ({
+  const sc = await effectiveScope(sb, c);
+  const f = scopeFilter(sc, "tournaments.sport_id", "tournament_id");
+  const { rows } = await scoped(f, (ids) => {
+    const q = sb.from("outrights").select("id,tournament_id,name,scheduled,status,competitors,tournaments!inner(sport_id)").eq("suspended", false);
+    return ids ? q.in(f!.col, ids) : q;
+  });
+  return rows.map(({ tournaments: _t, ...o }: any) => ({
     ...o,
     competitors: ((o.competitors as Outcome[]) ?? []).map((x) => ({
       name: x.name,
@@ -243,16 +310,21 @@ export async function getOutrights(sb: SupabaseClient, c: Client, rounding: Roun
 }
 
 export async function getResults(sb: SupabaseClient, c: Client) {
-  let q = sb
-    .from("settlements")
-    .select("match_id,market,specifier,outcome,settled_at,matches!inner(sport_id,tournament_id)")
-    .eq("state", "settled")
-    .order("settled_at", { ascending: false })
-    .limit(500);
-  if (c.sport_ids.length) q = q.in("matches.sport_id", c.sport_ids);
-  if (c.tournament_ids.length) q = q.in("matches.tournament_id", c.tournament_ids);
-  const { data } = await q;
-  return (data ?? []).map(({ matches: _m, ...r }: any) => r);
+  const sc = await effectiveScope(sb, c);
+  const f = scopeFilter(sc, "matches.sport_id", "matches.tournament_id");
+  const { rows } = await scoped(f, (ids) => {
+    const q = sb
+      .from("settlements")
+      .select("match_id,market,specifier,outcome,settled_at,matches!inner(sport_id,tournament_id)")
+      .eq("state", "settled")
+      .order("settled_at", { ascending: false })
+      .limit(500);
+    return ids ? q.in(f!.col, ids) : q;
+  });
+  return (rows as any[])
+    .sort((x, y) => String(y.settled_at).localeCompare(String(x.settled_at)))
+    .slice(0, 500)
+    .map(({ matches: _m, ...r }: any) => r);
 }
 
 /* ---------- XML (Betradar-like structure) ---------- */
