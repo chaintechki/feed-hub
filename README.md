@@ -79,3 +79,10 @@ Live odds arrive over a permanent message connection, which runs as the systemd 
 - The worker forwards signed message batches to the backend, refreshes the schedule every 10 minutes and requests recovery automatically after interruptions.
 - Every service start first sends a signed authentication check. A mismatched token or incorrect server clock stops deployment with a clear error instead of allowing repeated `401 Unauthorized` requests.
 - Status in the panel: the indicator in the top bar (live / pre-match), admins can trigger a manual sync there.
+
+## Ausfallschutz
+
+- nginx startet nach einem Absturz automatisch nach 3 Sekunden neu (ohne Startsperre).
+- nginx startet auch, wenn DNS beim Hochfahren kurz nicht erreichbar ist.
+- Ein Wächter prüft jede Minute nginx, feed-worker und die Seite und startet bei Bedarf neu: `journalctl -t feed-panel-watchdog`.
+- Logs sind begrenzt (nginx 14 Tage, Systemprotokoll 500 MB).
