@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { hasUsableOdds, matchesMonitorFilters, readMonitorFilters } from "./filters";
+import { activeFilterChips, hasUsableOdds, matchesMonitorFilters, readMonitorFilters } from "./filters";
 import type { MatchRow } from "./types";
 
 const NOW = Date.parse("2026-09-26T00:00:00Z");
@@ -46,5 +46,28 @@ describe("monitor filters", () => {
   it("restores valid saved filters and tolerates invalid storage", () => {
     expect(readMonitorFilters({ getItem: () => '{"withOdds":true}' })).toEqual({ withOdds: true });
     expect(readMonitorFilters({ getItem: () => "broken" })).toEqual({});
+  });
+});
+describe("active filter chips", () => {
+  it("lists flags, search, tree selection and tab with names", () => {
+    const chips = activeFilterChips(
+      { withOdds: true, alerted: true, manual: false },
+      "  bayern ",
+      { sportIds: ["s1"], categoryIds: [], tournamentIds: ["t9"] },
+      new Map([["s1", "Soccer"], ["t9", "Bundesliga"]]),
+      { id: "t2", name: "Premier League" },
+    );
+    expect(chips).toEqual([
+      { kind: "flag", key: "alerted" },
+      { kind: "flag", key: "withOdds" },
+      { kind: "term", value: "bayern" },
+      { kind: "sport", id: "s1", name: "Soccer" },
+      { kind: "tournament", id: "t9", name: "Bundesliga" },
+      { kind: "tab", id: "t2", name: "Premier League" },
+    ]);
+  });
+
+  it("is empty without filters", () => {
+    expect(activeFilterChips({}, "", { sportIds: [], categoryIds: [], tournamentIds: [] }, new Map())).toEqual([]);
   });
 });
