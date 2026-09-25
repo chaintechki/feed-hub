@@ -92,15 +92,20 @@ Deno.serve(async (req) => {
         const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
         if (error) throw error;
         const { data: roles } = await admin.from("user_roles").select("user_id,role");
-        const users = data.users.map((u) => ({
-          id: u.id,
-          username: (u.user_metadata?.username as string) ?? u.email?.split("@")[0] ?? "",
-          role: roles?.find((r) => r.user_id === u.id && r.role === "super_admin")?.role
-            ?? roles?.find((r) => r.user_id === u.id)?.role ?? "viewer",
-          banned: !!u.banned_until && new Date(u.banned_until) > new Date(),
-          created_at: u.created_at,
-          last_sign_in_at: u.last_sign_in_at ?? null,
-        }));
+        const superIds = new Set(
+          (roles ?? []).filter((r) => r.role === "super_admin").map((r) => r.user_id),
+        );
+        const users = data.users
+          .filter((u) => isSuper || !superIds.has(u.id))
+          .map((u) => ({
+            id: u.id,
+            username: (u.user_metadata?.username as string) ?? u.email?.split("@")[0] ?? "",
+            role: roles?.find((r) => r.user_id === u.id && r.role === "super_admin")?.role
+              ?? roles?.find((r) => r.user_id === u.id)?.role ?? "viewer",
+            banned: !!u.banned_until && new Date(u.banned_until) > new Date(),
+            created_at: u.created_at,
+            last_sign_in_at: u.last_sign_in_at ?? null,
+          }));
         return json({ users });
       }
       case "create": {
