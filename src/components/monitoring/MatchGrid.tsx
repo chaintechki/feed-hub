@@ -1,5 +1,6 @@
 import { CalendarDays, Clock, MessageSquare, MoreVertical, Radio, Scale, Star } from "lucide-react";
-import { Fragment, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -154,6 +155,173 @@ function ActionChip({ label, active }: { label: string; active?: boolean }) {
   );
 }
 
+type RowProps = {
+  m: MatchRow;
+  cmps: Map<string, Comparison>;
+  onOpen: (m: MatchRow) => void;
+  onAlert: (m: MatchRow) => void;
+  onComments: (m: MatchRow) => void;
+  onH2h: (m: MatchRow) => void;
+  onToggleSuspend?: ((match: MatchRow) => void) | undefined;
+  onToggleHotlist?: ((match: MatchRow) => void) | undefined;
+};
+
+const GridRow = memo(function GridRow({ m, cmps, onOpen: open, onAlert: setAlertFor, onComments: setCommentsFor, onH2h: setH2hFor, onToggleSuspend, onToggleHotlist }: RowProps) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const own = (market: OddsRow["market"]) => mainLine(m.odds.filter((o) => o.source === "own" && o.market === market));
+  const avg = (market: OddsRow["market"]) => {
+    const o = own(market);
+    return m.odds.find((x) => x.source === "average" && x.market === market && x.specifier === (o?.specifier ?? x.specifier));
+  };
+  const date = new Date(m.scheduled);
+
+  return (
+    <div
+      data-testid="match-row"
+      data-match-id={m.id}
+      className="grid grid-cols-[420px_180px_1fr_1fr_1fr] border-b border-border hover:bg-row-hover"
+    >
+      {/* match cell spanning both odds rows */}
+      <div className="relative flex flex-col justify-between border-r border-border bg-row px-2 py-1">
+        <div className="flex items-center gap-2">
+          <button onClick={() => onToggleHotlist?.(m)}>
+            <Star
+              className={cn(
+                "h-3.5 w-3.5",
+                m.hotlisted ? "fill-warning text-warning" : "text-border",
+              )}
+            />
+          </button>
+          <button onClick={() => open(m)} className="w-[120px] truncate text-left text-[11px] font-semibold hover:text-primary hover:underline">{m.homeTeam}</button>
+          <span className="flex flex-col items-center text-[10px] leading-tight text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <CalendarDays className="h-3 w-3" />
+              {date.toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "2-digit",
+              })}
+            </span>
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-foreground">
+              <Clock className="h-3 w-3" />
+              {date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          </span>
+          <Radio
+            className={cn(
+              "h-3.5 w-3.5",
+              m.liveodds === "booked" ? "text-live" : "text-border",
+            )}
+          />
+          <button onClick={() => open(m)} className="w-[120px] truncate text-right text-[11px] font-semibold hover:text-primary hover:underline">
+            {m.awayTeam}
+          </button>
+        </div>
+
+        <div className="mt-1 flex items-center gap-2">
+          <span className="flex h-[17px] min-w-[22px] items-center justify-center rounded-sm bg-muted px-1 text-[10px] font-bold">
+            {m.matchMinute ?? "—"}
+          </span>
+          <button
+            onClick={() => setAlertFor(m)}
+            title={t("mu.alertScore")}
+            className={cn(
+              "flex h-[17px] min-w-[26px] items-center justify-center rounded-sm px-1 text-[10px] font-bold",
+              m.alertScore >= 60 ? "bg-danger text-danger-foreground" : m.alertScore > 0 ? "bg-warning text-warning-foreground" : "bg-muted text-muted-foreground",
+            )}
+          >
+            {m.alertScore}
+          </button>
+          <button onClick={() => setCommentsFor(m)} className="flex items-center gap-1 text-[10px] text-primary hover:underline">
+            <MessageSquare className="h-3 w-3" />
+            {m.commentCount}/{m.logCount}
+          </button>
+          {m.marginSkewed && (
+            <span title={t("mu.marginSkewed")} className="flex items-center text-warning">
+              <Scale className="h-3.5 w-3.5" />
+            </span>
+          )}
+          <button
+            onClick={() => onToggleSuspend?.(m)}
+            className={cn(
+              "ml-auto h-[18px] rounded-sm px-2 text-[9px] font-bold uppercase",
+              m.suspended
+                ? "bg-danger text-danger-foreground"
+                : "bg-muted text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t("grid.suspend")}
+          </button>
+          <BookChip match={m} />
+          <ActionChip label="SA" active={m.controlMode === "semi_auto"} />
+          <ActionChip label="M" active={m.controlMode === "manual"} />
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => open(m)}>{t("mu.open")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setH2hFor(m)}>{t("mu.h2h")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/settlements?match=${encodeURIComponent(m.id)}`)}>{t("nav.settlements")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/archive?match=${encodeURIComponent(m.id)}`)}>{t("nav.archive")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void navigator.clipboard.writeText(m.id).then(() => toast.success(t("mu.copied")))}>{t("mu.copyId")}</DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  regenerateAlerts(m)
+                    .then((score) => {
+                      toast.success(`${t("mu.regenerated")}: ${score}`);
+                      void qc.invalidateQueries({ queryKey: ["matches"] });
+                    })
+                    .catch((e: Error) => toast.error(friendlyError(e)))
+                }
+              >
+                {t("mu.regenerate")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* own / average labels */}
+      <div className="grid grid-rows-2 border-r border-border">
+        <div className="flex items-center border-b border-border px-2 text-[11px] font-semibold">
+          {t("grid.own")}
+        </div>
+        <div className="flex items-center px-2 text-[11px] font-semibold">
+          {t("grid.average")}
+        </div>
+      </div>
+
+      {(["1x2", "total", "handicap"] as const).map((market, index) => (
+        <div
+          key={market}
+          className={cn("grid grid-rows-2", index < 2 && "border-r border-border")}
+        >
+          <div className="grid grid-cols-[1fr_1fr_1fr_36px] items-center gap-1 border-b border-border px-2">
+            <MarketCells row={own(market)} market={market} heat={m.heat} matchId={m.id} />
+            <Margin value={own(market)?.margin ?? null} />
+          </div>
+          {(() => {
+            const o = own(market);
+            const c = o ? cmps.get(`${m.id}|${o.market}|${o.specifier ?? ""}`) : undefined;
+            return (
+              <div className="relative grid grid-cols-[1fr_1fr_1fr_36px] items-center gap-1 px-2">
+                <MarketCells row={withNorm(avg(market), c)} market={market} heat={m.heat} matchId={m.id} />
+                <Margin value={c ? o?.margin ?? null : avg(market)?.margin ?? null} />
+                {c && <StrengthBar value={c.strength} />}
+              </div>
+            );
+          })()}
+        </div>
+      ))}
+    </div>
+  );
+});
+
+type Item = { type: "header"; key: string; label: string } | { type: "row"; key: string; m: MatchRow };
+
 export function MatchGrid({
   matches,
   isLoading,
@@ -169,26 +337,44 @@ export function MatchGrid({
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const [alertFor, setAlertFor] = useState<MatchRow | null>(null);
   const [commentsFor, setCommentsFor] = useState<MatchRow | null>(null);
   const [h2hFor, setH2hFor] = useState<MatchRow | null>(null);
-  const cmps = useComparisons(matches);
-  const open = (m: MatchRow) => navigate(`/monitoring/match/${encodeURIComponent(m.id)}`);
+  const open = useCallback((m: MatchRow) => navigate(`/monitoring/match/${encodeURIComponent(m.id)}`), [navigate]);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const groups = useMemo(() => {
+  const items = useMemo(() => {
     const map = new Map<string, { label: string; rows: MatchRow[] }>();
     for (const m of matches) {
       const key = m.tournamentId;
-      const label = `${m.sportName} / ${m.categoryName} / ${m.tournamentName}`.toUpperCase();
-      if (!map.has(key)) map.set(key, { label, rows: [] });
+      if (!map.has(key)) map.set(key, { label: `${m.sportName} / ${m.categoryName} / ${m.tournamentName}`.toUpperCase(), rows: [] });
       map.get(key)!.rows.push(m);
     }
-    return [...map.values()];
+    const out: Item[] = [];
+    for (const [key, g] of map) {
+      out.push({ type: "header", key: `h:${key}`, label: g.label });
+      for (const m of g.rows) out.push({ type: "row", key: m.id, m });
+    }
+    return out;
   }, [matches]);
 
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: (i) => (items[i]?.type === "header" ? 24 : 52),
+    getItemKey: (i) => items[i]!.key,
+    overscan: 12,
+  });
+  const virtualItems = virtualizer.getVirtualItems();
+  const visibleMatches = useMemo(
+    () => virtualItems.flatMap((v) => { const it = items[v.index]; return it?.type === "row" ? [it.m] : []; }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, virtualItems.map((v) => v.index).join(",")],
+  );
+  const cmps = useComparisons(visibleMatches);
+
   return (
-    <div className="panel-scroll min-h-0 flex-1 overflow-auto bg-panel">
+    <div ref={scrollRef} data-testid="match-scroll" data-count={matches.length} className="panel-scroll min-h-0 flex-1 overflow-auto bg-panel">
       <div className="min-w-[1180px]">
         {/* column header */}
         <div className="sticky top-0 z-10 grid grid-cols-[420px_180px_1fr_1fr_1fr] border-b border-border bg-panel-header text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
@@ -199,7 +385,7 @@ export function MatchGrid({
           <div className="px-2 py-1.5 text-center">{t("grid.handicap")}</div>
         </div>
 
-        {isLoading ? (
+        {isLoading && !matches.length ? (
           <p className="p-4 text-[11px] text-muted-foreground">{t("common.loading")}</p>
         ) : null}
         {!isLoading && isError ? (
@@ -209,165 +395,36 @@ export function MatchGrid({
           <p className="p-4 text-[11px] text-muted-foreground">{t("grid.noMatches")}</p>
         ) : null}
 
-        {groups.map((group) => (
-          <Fragment key={group.label}>
-            <div className="border-y border-border bg-panel-header px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-foreground">
-              {group.label}
-            </div>
-
-            {group.rows.map((m) => {
-              const own = (market: OddsRow["market"]) => mainLine(m.odds.filter((o) => o.source === "own" && o.market === market));
-              const avg = (market: OddsRow["market"]) => {
-                const o = own(market);
-                return m.odds.find((x) => x.source === "average" && x.market === market && x.specifier === (o?.specifier ?? x.specifier));
-              };
-              const date = new Date(m.scheduled);
-
-              return (
-                <div
-                  key={m.id}
-                  data-testid="match-row"
-                  data-match-id={m.id}
-                  className="grid grid-cols-[420px_180px_1fr_1fr_1fr] border-b border-border hover:bg-row-hover"
-                >
-                  {/* match cell spanning both odds rows */}
-                  <div className="relative flex flex-col justify-between border-r border-border bg-row px-2 py-1">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => onToggleHotlist?.(m)}>
-                        <Star
-                          className={cn(
-                            "h-3.5 w-3.5",
-                            m.hotlisted ? "fill-warning text-warning" : "text-border",
-                          )}
-                        />
-                      </button>
-                      <button onClick={() => open(m)} className="w-[120px] truncate text-left text-[11px] font-semibold hover:text-primary hover:underline">{m.homeTeam}</button>
-                      <span className="flex flex-col items-center text-[10px] leading-tight text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <CalendarDays className="h-3 w-3" />
-                          {date.toLocaleDateString("en-GB", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "2-digit",
-                          })}
-                        </span>
-                        <span className="flex items-center gap-1 text-[11px] font-semibold text-foreground">
-                          <Clock className="h-3 w-3" />
-                          {date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                      </span>
-                      <Radio
-                        className={cn(
-                          "h-3.5 w-3.5",
-                          m.liveodds === "booked" ? "text-live" : "text-border",
-                        )}
-                      />
-                      <button onClick={() => open(m)} className="w-[120px] truncate text-right text-[11px] font-semibold hover:text-primary hover:underline">
-                        {m.awayTeam}
-                      </button>
-                    </div>
-
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="flex h-[17px] min-w-[22px] items-center justify-center rounded-sm bg-muted px-1 text-[10px] font-bold">
-                        {m.matchMinute ?? "—"}
-                      </span>
-                      <button
-                        onClick={() => setAlertFor(m)}
-                        title={t("mu.alertScore")}
-                        className={cn(
-                          "flex h-[17px] min-w-[26px] items-center justify-center rounded-sm px-1 text-[10px] font-bold",
-                          m.alertScore >= 60 ? "bg-danger text-danger-foreground" : m.alertScore > 0 ? "bg-warning text-warning-foreground" : "bg-muted text-muted-foreground",
-                        )}
-                      >
-                        {m.alertScore}
-                      </button>
-                      <button onClick={() => setCommentsFor(m)} className="flex items-center gap-1 text-[10px] text-primary hover:underline">
-                        <MessageSquare className="h-3 w-3" />
-                        {m.commentCount}/{m.logCount}
-                      </button>
-                      {m.marginSkewed && (
-                        <span title={t("mu.marginSkewed")} className="flex items-center text-warning">
-                          <Scale className="h-3.5 w-3.5" />
-                        </span>
-                      )}
-                      <button
-                        onClick={() => onToggleSuspend?.(m)}
-                        className={cn(
-                          "ml-auto h-[18px] rounded-sm px-2 text-[9px] font-bold uppercase",
-                          m.suspended
-                            ? "bg-danger text-danger-foreground"
-                            : "bg-muted text-muted-foreground hover:text-foreground",
-                        )}
-                      >
-                        {t("grid.suspend")}
-                      </button>
-                      <BookChip match={m} />
-                      <ActionChip label="SA" active={m.controlMode === "semi_auto"} />
-                      <ActionChip label="M" active={m.controlMode === "manual"} />
-                      <DropdownMenu>
-                        <DropdownMenuTrigger>
-                          <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => open(m)}>{t("mu.open")}</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setH2hFor(m)}>{t("mu.h2h")}</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/settlements?match=${encodeURIComponent(m.id)}`)}>{t("nav.settlements")}</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/archive?match=${encodeURIComponent(m.id)}`)}>{t("nav.archive")}</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => void navigator.clipboard.writeText(m.id).then(() => toast.success(t("mu.copied")))}>{t("mu.copyId")}</DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              regenerateAlerts(m)
-                                .then((score) => {
-                                  toast.success(`${t("mu.regenerated")}: ${score}`);
-                                  void qc.invalidateQueries({ queryKey: ["matches"] });
-                                })
-                                .catch((e: Error) => toast.error(friendlyError(e)))
-                            }
-                          >
-                            {t("mu.regenerate")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+        <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+          {virtualItems.map((v) => {
+            const it = items[v.index]!;
+            return (
+              <div
+                key={v.key}
+                data-index={v.index}
+                ref={virtualizer.measureElement}
+                style={{ position: "absolute", top: 0, left: 0, right: 0, transform: `translateY(${v.start}px)` }}
+              >
+                {it.type === "header" ? (
+                  <div className="border-y border-border bg-panel-header px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-foreground">
+                    {it.label}
                   </div>
-
-                  {/* own / average labels */}
-                  <div className="grid grid-rows-2 border-r border-border">
-                    <div className="flex items-center border-b border-border px-2 text-[11px] font-semibold">
-                      {t("grid.own")}
-                    </div>
-                    <div className="flex items-center px-2 text-[11px] font-semibold">
-                      {t("grid.average")}
-                    </div>
-                  </div>
-
-                  {(["1x2", "total", "handicap"] as const).map((market, index) => (
-                    <div
-                      key={market}
-                      className={cn("grid grid-rows-2", index < 2 && "border-r border-border")}
-                    >
-                      <div className="grid grid-cols-[1fr_1fr_1fr_36px] items-center gap-1 border-b border-border px-2">
-                        <MarketCells row={own(market)} market={market} heat={m.heat} matchId={m.id} />
-                        <Margin value={own(market)?.margin ?? null} />
-                      </div>
-                      {(() => {
-                        const o = own(market);
-                        const c = o ? cmps.get(`${m.id}|${o.market}|${o.specifier ?? ""}`) : undefined;
-                        return (
-                          <div className="relative grid grid-cols-[1fr_1fr_1fr_36px] items-center gap-1 px-2">
-                            <MarketCells row={withNorm(avg(market), c)} market={market} heat={m.heat} matchId={m.id} />
-                            <Margin value={c ? o?.margin ?? null : avg(market)?.margin ?? null} />
-                            {c && <StrengthBar value={c.strength} />}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-          </Fragment>
-        ))}
+                ) : (
+                  <GridRow
+                    m={it.m}
+                    cmps={cmps}
+                    onOpen={open}
+                    onAlert={setAlertFor}
+                    onComments={setCommentsFor}
+                    onH2h={setH2hFor}
+                    onToggleSuspend={onToggleSuspend}
+                    onToggleHotlist={onToggleHotlist}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
       <AlertScoreDialog match={alertFor} onClose={() => setAlertFor(null)} />
       <CommentsDialog match={commentsFor} onClose={() => setCommentsFor(null)} />

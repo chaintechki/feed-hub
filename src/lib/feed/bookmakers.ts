@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -71,13 +72,15 @@ export function useComparisons(matches: MatchRow[]) {
   const ids = matches.map((m) => m.id);
   const lists = useBookmakerLists();
   const books = useBookmakers();
-  const odds = useQuery({ queryKey: ["bm-odds", ids], enabled: ids.length > 0, queryFn: () => fetchBookmakerOdds(ids) });
-  const out = new Map<string, Comparison>();
-  if (!lists.data || !books.data || !odds.data) return out;
-  for (const m of matches)
-    for (const own of m.odds.filter((o) => o.source === "own")) {
-      const c = compareMarket(own, m.id, m, lists.data, books.data, odds.data);
-      if (c) out.set(`${m.id}|${own.market}|${own.specifier ?? ""}`, c);
-    }
-  return out;
+  const odds = useQuery({ queryKey: ["bm-odds", ids], enabled: ids.length > 0, staleTime: 30_000, placeholderData: (prev) => prev, queryFn: () => fetchBookmakerOdds(ids) });
+  return useMemo(() => {
+    const out = new Map<string, Comparison>();
+    if (!lists.data || !books.data || !odds.data) return out;
+    for (const m of matches)
+      for (const own of m.odds.filter((o) => o.source === "own")) {
+        const c = compareMarket(own, m.id, m, lists.data, books.data, odds.data);
+        if (c) out.set(`${m.id}|${own.market}|${own.specifier ?? ""}`, c);
+      }
+    return out;
+  }, [matches, lists.data, books.data, odds.data]);
 }

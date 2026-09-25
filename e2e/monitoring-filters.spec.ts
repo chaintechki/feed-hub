@@ -108,6 +108,7 @@ async function openMonitoring(page: Page) {
   await expect(page.getByTestId("match-row").first()).toBeVisible({ timeout: 20_000 });
 }
 
+const expectCount = (page: Page, n: number) => expect(page.getByTestId("match-scroll")).toHaveAttribute("data-count", String(n));
 const rowIds = async (page: Page) =>
   (await page.getByTestId("match-row").evaluateAll((els) => els.map((e) => e.getAttribute("data-match-id")!))).map(idx);
 const filterButton = (page: Page, name: RegExp) => page.getByRole("button", { name, exact: false }).first();
@@ -121,45 +122,54 @@ test.describe("monitoring filters with a large feed", () => {
     await openMonitoring(page);
   });
 
-  test("without filters the grid is capped at 500 rows", async ({ page }) => {
-    await expect(page.getByTestId("match-row")).toHaveCount(500);
+  test("without filters all matches are listed but only visible rows are rendered", async ({ page }) => {
+    const total = Number(await page.getByTestId("match-scroll").getAttribute("data-count"));
+    expect(total).toBeGreaterThan(500);
+    expect(await page.getByTestId("match-row").count()).toBeLessThan(120);
     await expect(page.getByTestId("active-filters")).toHaveCount(0);
+    await expect(page.getByTestId("load-progress")).toContainText(/of/);
+  });
+
+  test("scrolling lazily renders rows further down", async ({ page }) => {
+    const first = (await rowIds(page))[0];
+    await page.getByTestId("match-scroll").evaluate((el) => { el.scrollTop = el.scrollHeight; });
+    await expect.poll(async () => (await rowIds(page)).includes(first!)).toBe(false);
   });
 
   test("'with odds' shows exactly the matches with open numeric odds, also beyond the first page", async ({ page }) => {
     await filterButton(page, /^with odds$/i).click();
     const expected = range((i) => i % 7 === 0);
-    await expect(page.getByTestId("match-row")).toHaveCount(expected.length);
-    const ids = await rowIds(page);
-    expect(ids.sort((a, b) => a - b)).toEqual(expected);
-    expect(ids).toContain(2996); // lives on the third result page
+    await expectCount(page, expected.length);
+    await page.getByPlaceholder(/find|suchen/i).fill("Home 2996 ");
+    await expect.poll(async () => rowIds(page)).toEqual([2996]); // lives on the third result page
   });
 
   test("combined filters intersect", async ({ page }) => {
     await filterButton(page, /^with odds$/i).click();
     await filterButton(page, /^alerted$/i).click();
     const expected = range((i) => i % 7 === 0 && i % 13 === 0);
-    await expect(page.getByTestId("match-row")).toHaveCount(expected.length);
-    expect((await rowIds(page)).sort((a, b) => a - b)).toEqual(expected);
+    await expectCount(page, expected.length);
+    await expect.poll(async () => (await rowIds(page)).every((id) => expected.includes(id))).toBe(true);
   });
 
   test("hotlist within 24 hours", async ({ page }) => {
     await filterButton(page, /^hotlist/i).click();
     await filterButton(page, /^24 hours$/i).click();
     const expected = range((i) => i % 17 === 0 && within24h(i));
-    await expect(page.getByTestId("match-row")).toHaveCount(expected.length);
-    expect((await rowIds(page)).sort((a, b) => a - b)).toEqual(expected);
+    await expectCount(page, expected.length);
+    await expect.poll(async () => (await rowIds(page)).every((id) => expected.includes(id))).toBe(true);
   });
 
   test("manual control plus search term", async ({ page }) => {
     await filterButton(page, /^manual$/i).click();
     await page.getByPlaceholder(/find|suchen/i).fill("Home 299");
     const expected = range((i) => i % 5 === 0 && `Home ${i} Away ${i} League ${i % 30}`.toLowerCase().includes("home 299"));
-    await expect(page.getByTestId("match-row")).toHaveCount(expected.length);
-    expect((await rowIds(page)).sort((a, b) => a - b)).toEqual(expected);
+    await expectCount(page, expected.length);
+    await expect.poll(async () => (await rowIds(page)).every((id) => expected.includes(id))).toBe(true);
   });
 
   test("active filter chips list filters and remove them individually", async ({ page }) => {
+    const TOTAL_VISIBLE = Number(await page.getByTestId("match-scroll").getAttribute("data-count"));
     await filterButton(page, /^with odds$/i).click();
     await filterButton(page, /^alerted$/i).click();
     await page.getByPlaceholder(/find|suchen/i).fill("Home");
@@ -168,11 +178,11 @@ test.describe("monitoring filters with a large feed", () => {
 
     await page.getByRole("button", { name: /remove filter: alerted/i }).click();
     await expect(chips).toHaveCount(2);
-    await expect(page.getByTestId("match-row")).toHaveCount(range((i) => i % 7 === 0).length);
+    await expectCount(page, range((i) => i % 7 === 0).length);
 
     await page.getByRole("button", { name: /clear all/i }).click();
     await expect(page.getByTestId("active-filters")).toHaveCount(0);
-    await expect(page.getByTestId("match-row")).toHaveCount(500);
+    await expectCount(page, TOTAL_VISIBLE);
     await expect(page.getByPlaceholder(/find|suchen/i)).toHaveValue("");
   });
 });
