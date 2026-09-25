@@ -170,7 +170,7 @@ const GridRow = memo(function GridRow({ m, cmps, onOpen: open, onAlert: setAlert
   const { t } = useTranslation();
   const navigate = useNavigate();
   const qc = useQueryClient();
-              const own = (market: OddsRow["market"]) => mainLine(m.odds.filter((o) => o.source === "own" && o.market === market));
+  const own = (market: OddsRow["market"]) => mainLine(m.odds.filter((o) => o.source === "own" && o.market === market));
   const avg = (market: OddsRow["market"]) => {
     const o = own(market);
     return m.odds.find((x) => x.source === "average" && x.market === market && x.specifier === (o?.specifier ?? x.specifier));
@@ -179,7 +179,6 @@ const GridRow = memo(function GridRow({ m, cmps, onOpen: open, onAlert: setAlert
 
   return (
     <div
-      key={m.id}
       data-testid="match-row"
       data-match-id={m.id}
       className="grid grid-cols-[420px_180px_1fr_1fr_1fr] border-b border-border hover:bg-row-hover"
@@ -318,6 +317,7 @@ const GridRow = memo(function GridRow({ m, cmps, onOpen: open, onAlert: setAlert
         </div>
       ))}
     </div>
+  );
 });
 
 type Item = { type: "header"; key: string; label: string } | { type: "row"; key: string; m: MatchRow };
