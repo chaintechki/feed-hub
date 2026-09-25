@@ -75,7 +75,7 @@ test.describe("normal admin visibility", () => {
     });
     await signIn(page, SUPER!);
     await page.goto("/configuration");
-    await expect(page.getByText(hiddenName)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(hiddenName).first()).toBeVisible({ timeout: 15000 });
 
     await page.evaluate(() => ((window as unknown as { __seen: string[] }).__seen = []));
     await page.evaluate(([k, v]) => localStorage.setItem(k, v), [KEY!, ADMIN!]);
