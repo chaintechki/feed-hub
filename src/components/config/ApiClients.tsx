@@ -282,8 +282,7 @@ export function ApiClients({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean 
               {usage.unknown.map(([hint, n]) => (
                 <tr key={hint || "none"} className="border-b border-border last:border-0">
                   <td className="px-3 py-1.5 font-semibold text-danger">
-                    {t("usage.reason.invalid_key")}
-                    {hint ? ` (${hint}…)` : ""}
+                    {hint ? `${t("usage.reason.invalid_key")} (${hint}…)` : t("usage.reason.key_missing")}
                   </td>
                   <td className="px-3 py-1.5 text-right font-mono text-danger">—</td>
                   <td className="px-3 py-1.5 text-right font-mono text-danger">—</td>
