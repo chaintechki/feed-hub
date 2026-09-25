@@ -105,5 +105,5 @@
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^5.0.1"
   },
-  "version": "1.0.4"
+  "version": "1.0.5"
 }
