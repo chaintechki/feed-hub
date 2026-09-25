@@ -54,7 +54,12 @@ export default function MonitorOutrights() {
                   </td>
                   <td className="border-b border-border px-3 py-1.5 uppercase">{row.status}</td>
                   <td className="border-b border-border px-3 py-1.5">
-                    {Array.isArray(row.competitors) ? row.competitors.length : 0}
+                    {row.competitors.slice(0, 4).map((c, i) => (
+                      <span key={c.id ?? i} className="mr-3 whitespace-nowrap">
+                        {c.name} <b className="font-mono">{typeof c.odds === "number" ? c.odds.toFixed(2) : "—"}</b>
+                      </span>
+                    ))}
+                    {row.competitors.length > 4 ? <span className="text-muted-foreground">+{row.competitors.length - 4}</span> : null}
                   </td>
                 </tr>
               ))}

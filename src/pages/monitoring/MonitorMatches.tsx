@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ActiveFilterChips } from "@/components/monitoring/ActiveFilterChips";
 import { FilterBar } from "@/components/monitoring/FilterBar";
 import { MatchGrid } from "@/components/monitoring/MatchGrid";
+import { OutrightsPanel } from "@/components/monitoring/OutrightsPanel";
 import { MonitorSubBar } from "@/components/monitoring/MonitorSubBar";
 import { SportTree, type TreeSelection } from "@/components/monitoring/SportTree";
 import { supabase } from "@/integrations/supabase/client";
@@ -131,6 +132,7 @@ export default function MonitorMatches() {
             onToggleHotlist={(m) => patchMatch.mutate({ id: m.id, patch: { hotlisted: !m.hotlisted } })}
           />
         </div>
+        <OutrightsPanel tournamentIds={selection.tournamentIds} />
       </div>
     </div>
   );

@@ -466,7 +466,27 @@
     "dbReads": "DB reads",
     "avgLoad": "Avg load time",
     "entries": "Entries",
-    "refreshed": "Last refresh"
+    "refreshed": "Last refresh",
+    "statusSync": "Match status reconcile with provider",
+    "lastStatusSync": "Last reconcile",
+    "statusChecked": "Matches checked",
+    "statusErrors": "without answer",
+    "statusUpdated": "Matches changed",
+    "statusForced": "auto-ended",
+    "serverRam": "Feed server RAM",
+    "workerRam": "Feed worker RAM",
+    "memWaiting": "Measured after the feed server's next reconcile",
+    "aiAccuracy": "AI analysis accuracy",
+    "aiAccuracyHint": "Fixed set of German test questions: checks whether the AI searches the right sport, league and market. Each run uses AI credits.",
+    "evalRun": "Measure accuracy",
+    "evalRunning": "Measuring…",
+    "evalDone": "Accuracy: {{pct}} %",
+    "evalFailed": "Measurement failed",
+    "modelAccuracy": "Model accuracy",
+    "resolverAccuracy": "Dictionary hits",
+    "resolverHint": "German term detection without AI",
+    "evalQuestion": "Test question",
+    "evalFilters": "Chosen filters"
   },
   "activeFilters": {
     "label": "Active filters",
@@ -495,5 +515,12 @@
       "get_match_odds": "Fetch odds",
       "feed_summary": "Feed summary"
     }
+  },
+  "outrights": {
+    "title": "Outrights",
+    "show": "Show outrights",
+    "hide": "Hide outrights",
+    "loading": "Loading…",
+    "empty": "No outrights for the current selection."
   }
 }

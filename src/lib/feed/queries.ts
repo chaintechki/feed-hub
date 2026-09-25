@@ -231,17 +231,31 @@ export function useSettlements() {
   });
 }
 
+export type OutrightRow = {
+  id: string;
+  tournament_id: string;
+  name: string;
+  scheduled: string | null;
+  status: string;
+  suspended: boolean;
+  market_name: string | null;
+  updated_at: string;
+  competitors: { id?: string; name: string; odds: number | null }[];
+};
+
 export function useOutrights() {
   return useQuery({
     queryKey: ["outrights"],
+    refetchInterval: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("outrights")
-        .select("id,tournament_id,name,scheduled,status,competitors")
-        .order("name")
+        .select("id,tournament_id,name,scheduled,status,suspended,market_name,updated_at,competitors")
+        .order("suspended")
+        .order("updated_at", { ascending: false })
         .limit(300);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as unknown as OutrightRow[];
     },
   });
 }

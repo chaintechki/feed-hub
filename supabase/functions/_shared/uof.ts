@@ -99,7 +99,20 @@ export async function upsertEvents(sb: SupabaseClient, events: Ev[]) {
   await chunk("sports", [...sports.values()].map((x) => ({ ...x })), true);
   await chunk("categories", [...cats.values()]);
   await chunk("tournaments", [...tours.values()]);
-  await chunk("matches", matches);
+  // Fixtures often carry no status; never reopen a match the status reconcile already closed.
+  const withStatus = matches.filter((m) => events.find((e) => e.id === m.id)?.status);
+  const noStatus = matches.filter((m) => !withStatus.includes(m));
+  await chunk("matches", withStatus);
+  if (noStatus.length) {
+    const ids = noStatus.map((m) => m.id);
+    const existing = new Set<string>();
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data } = await sb.from("matches").select("id").in("id", ids.slice(i, i + 200));
+      for (const r of data ?? []) existing.add(r.id);
+    }
+    await chunk("matches", noStatus.filter((m) => !existing.has(m.id)));
+    await chunk("matches", noStatus.filter((m) => existing.has(m.id)).map(({ status: _s, ...rest }) => rest));
+  }
   return { sports: sports.size, categories: cats.size, tournaments: tours.size, matches: matches.length };
 }
 
