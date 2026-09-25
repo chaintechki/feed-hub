@@ -1,3 +1,4 @@
+import { setCacheSource } from "../_shared/cache-stats.ts";
 import { cached, clientScopeKey, db, errorBody, getMatches, overLimit, rateHeaders, resolveKey, roundingMode, trackDenial, trackMeta, etagMatches, type ErrorCode } from "../_shared/feed.ts";
 
 function hostAllowed(origin: string | null, allowed: string[]) {
@@ -10,6 +11,7 @@ function hostAllowed(origin: string | null, allowed: string[]) {
   });
 }
 
+setCacheSource("feed-widget");
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
   const cors = {
