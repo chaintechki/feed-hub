@@ -123,10 +123,11 @@ Deno.serve(async (req) => {
         return json({ id });
       }
       case "set_role": {
+        const before = await rolesOf(b.user_id);
         await admin.from("user_roles").delete().eq("user_id", b.user_id);
         const { error } = await admin.from("user_roles").insert(rolesFor(b.user_id, b.role));
         if (error) throw error;
-        await audit("user.set_role", b.user_id, { role: b.role });
+        await audit("user.set_role", b.user_id, { role: b.role, before, after: rolesFor(b.user_id, b.role).map((r) => r.role) });
         return json({ ok: true });
       }
       case "reset_password": {
