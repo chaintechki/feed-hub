@@ -465,6 +465,42 @@ export type Database = {
         }
         Relationships: []
       }
+      cache_stats: {
+        Row: {
+          db_reads: number
+          entries: number
+          hits: number
+          load_ms: number
+          loads: number
+          minute: string
+          misses: number
+          refreshed_at: string | null
+          source: string
+        }
+        Insert: {
+          db_reads?: number
+          entries?: number
+          hits?: number
+          load_ms?: number
+          loads?: number
+          minute: string
+          misses?: number
+          refreshed_at?: string | null
+          source: string
+        }
+        Update: {
+          db_reads?: number
+          entries?: number
+          hits?: number
+          load_ms?: number
+          loads?: number
+          minute?: string
+          misses?: number
+          refreshed_at?: string | null
+          source?: string
+        }
+        Relationships: []
+      }
       captcha_used: {
         Row: {
           expires_at: string
@@ -508,6 +544,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cleanup_runs: {
+        Row: {
+          duration_ms: number
+          error: string | null
+          id: number
+          ok: boolean
+          result: Json | null
+          started_at: string
+        }
+        Insert: {
+          duration_ms: number
+          error?: string | null
+          id?: number
+          ok: boolean
+          result?: Json | null
+          started_at: string
+        }
+        Update: {
+          duration_ms?: number
+          error?: string | null
+          id?: number
+          ok?: boolean
+          result?: Json | null
+          started_at?: string
+        }
+        Relationships: []
       }
       cost_settings: {
         Row: {
@@ -910,6 +973,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ops_metrics: {
+        Row: {
+          at: string
+          cache_hit_pct: number | null
+          connections: number | null
+          db_bytes: number
+          dead_rows: number | null
+          id: number
+          tables: Json
+          wal_bytes: number | null
+        }
+        Insert: {
+          at?: string
+          cache_hit_pct?: number | null
+          connections?: number | null
+          db_bytes: number
+          dead_rows?: number | null
+          id?: number
+          tables?: Json
+          wal_bytes?: number | null
+        }
+        Update: {
+          at?: string
+          cache_hit_pct?: number | null
+          connections?: number | null
+          db_bytes?: number
+          dead_rows?: number | null
+          id?: number
+          tables?: Json
+          wal_bytes?: number | null
+        }
+        Relationships: []
       }
       outrights: {
         Row: {
@@ -1443,6 +1539,19 @@ export type Database = {
           ok: boolean
         }[]
       }
+      cache_track: {
+        Args: {
+          _db_reads: number
+          _entries: number
+          _hits: number
+          _load_ms: number
+          _loads: number
+          _misses: number
+          _refreshed_at: string
+          _source: string
+        }
+        Returns: undefined
+      }
       can_see_api_client: {
         Args: { _client: string; _user: string }
         Returns: boolean
@@ -1457,6 +1566,7 @@ export type Database = {
         Returns: boolean
       }
       db_cleanup: { Args: never; Returns: Json }
+      db_cleanup_core: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1465,6 +1575,7 @@ export type Database = {
         Returns: boolean
       }
       market_group_of: { Args: { _name: string }; Returns: string }
+      ops_snapshot: { Args: never; Returns: undefined }
       owns_api_client: {
         Args: { _client: string; _user: string }
         Returns: boolean

@@ -148,6 +148,13 @@
       "when": 1790372330557,
       "tag": "0020_db_optimization",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790374421628,
+      "tag": "0021_ops_dashboard",
+      "breakpoints": true
     }
   ]
 }
