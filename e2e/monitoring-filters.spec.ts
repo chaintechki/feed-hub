@@ -149,7 +149,7 @@ test.describe("monitoring filters with a large feed", () => {
     await filterButton(page, /^alerted$/i).click();
     const expected = range((i) => i % 7 === 0 && i % 13 === 0);
     await expectCount(page, expected.length);
-    expect((await rowIds(page)).sort((a, b) => a - b)).toEqual(expected);
+    await expect.poll(async () => (await rowIds(page)).sort((a, b) => a - b)).toEqual(expected);
   });
 
   test("hotlist within 24 hours", async ({ page }) => {
@@ -157,7 +157,7 @@ test.describe("monitoring filters with a large feed", () => {
     await filterButton(page, /^24 hours$/i).click();
     const expected = range((i) => i % 17 === 0 && within24h(i));
     await expectCount(page, expected.length);
-    expect((await rowIds(page)).sort((a, b) => a - b)).toEqual(expected);
+    await expect.poll(async () => (await rowIds(page)).sort((a, b) => a - b)).toEqual(expected);
   });
 
   test("manual control plus search term", async ({ page }) => {
@@ -165,7 +165,7 @@ test.describe("monitoring filters with a large feed", () => {
     await page.getByPlaceholder(/find|suchen/i).fill("Home 299");
     const expected = range((i) => i % 5 === 0 && `Home ${i} Away ${i} League ${i % 30}`.toLowerCase().includes("home 299"));
     await expectCount(page, expected.length);
-    expect((await rowIds(page)).sort((a, b) => a - b)).toEqual(expected);
+    await expect.poll(async () => (await rowIds(page)).sort((a, b) => a - b)).toEqual(expected);
   });
 
   test("active filter chips list filters and remove them individually", async ({ page }) => {
