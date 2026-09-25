@@ -1,3 +1,4 @@
 - Audit-Log ist append-only mit SHA-256-Hash-Kette (Trigger audit_chain/audit_immutable); Sichtbarkeitsfilter liegen in supabase/functions/_shared/visibility.ts — eine testbare Quelle für Edge Functions.
 - Betriebskennzahlen: ops_metrics (stündlich via ops_snapshot), cleanup_runs (db_cleanup-Wrapper um db_cleanup_core), cache_stats (In-Memory-Zähler aus _shared/cache-stats.ts, max. 1 Flush je 5 s, da Instanzen nur Sekunden leben) — Metriken dürfen den Feed nie blockieren.
 - Monitoring-Filter verwenden die reine Funktion in `src/lib/feed/filters.ts`; die vollständige Spielmenge wird paginiert geladen und erst danach gefiltert, damit Ergebnislimits keine Treffer verbergen.
+- KI-Feed-Analyse (`feed-assistant`): nur lesende Tools, Abfragen mit dem Benutzer-JWT (RLS/Sichtbarkeit greifen); Verlauf lädt der Server aus `ai_chat_messages`, der Client sendet nur die neue Frage — verhindert manipulierte Historie.
