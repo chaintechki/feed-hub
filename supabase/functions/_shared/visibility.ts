@@ -44,6 +44,6 @@ export async function auditHash(e: {
 }
 
 export function requestMeta(req: Request) {
-  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || null;
+  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim() || null;
   return { ip, ua: (req.headers.get("user-agent") ?? "").slice(0, 200) || null };
 }

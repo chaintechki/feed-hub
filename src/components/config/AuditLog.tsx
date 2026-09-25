@@ -54,7 +54,10 @@ export function AuditLog() {
 
   const verify = async () => {
     const { data, error } = await supabase.rpc("audit_verify");
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     const r = data?.[0];
     if (r?.ok) toast.success(t("audit.ok", { n: r.checked }));
     else toast.error(t("audit.broken", { seq: r?.broken_seq }));
@@ -72,8 +75,8 @@ export function AuditLog() {
       header: t("audit.change"),
       render: (r) => {
         const d = r.details ?? {};
-        if ("before" in d || "after" in d) return `${fmt(d.before)} → ${fmt(d.after)}`;
-        return fmt(d.role ?? d.admin_id ?? d.owner_id);
+        if ("before" in d || "after" in d) return `${fmt(d["before"])} → ${fmt(d["after"])}`;
+        return fmt(d["role"] ?? d["admin_id"] ?? d["owner_id"]);
       },
     },
   ];
