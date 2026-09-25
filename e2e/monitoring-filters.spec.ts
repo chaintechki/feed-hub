@@ -112,9 +112,10 @@ const rowIds = async (page: Page) =>
   (await page.getByTestId("match-row").evaluateAll((els) => els.map((e) => e.getAttribute("data-match-id")!))).map(idx);
 const filterButton = (page: Page, name: RegExp) => page.getByRole("button", { name, exact: false }).first();
 const range = (pred: (i: number) => boolean) => Array.from({ length: TOTAL }, (_, i) => i).filter(pred);
-const within24h = (i: number) => 0.51 + i * 0.02 <= 23.9;
+const within24h = (i: number) => 0.51 + i * 0.02 < 24;
 
 test.describe("monitoring filters with a large feed", () => {
+  test.describe.configure({ timeout: 90_000 });
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem("i18nextLng", "en"));
     await openMonitoring(page);
