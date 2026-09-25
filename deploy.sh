@@ -187,6 +187,8 @@ fi
 
 # ---------------------------------------------------------------- 3. version + build
 mkdir -p "$STATE_DIR"
+# Restore package files on ANY exit (also on errors/abort) so a manual `git pull` never gets blocked.
+trap 'cd "$SCRIPT_DIR" 2>/dev/null && git checkout -- package.json package-lock.json 2>/dev/null || true' EXIT
 if [ "${NO_BUMP:-0}" != "1" ]; then
   log "Bumping patch version"
   NEXT="$(node -e '
