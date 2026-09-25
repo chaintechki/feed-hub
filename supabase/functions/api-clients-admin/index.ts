@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
           sb.from("user_roles").select("user_id,role"),
         ]);
         return json({
-          users: (data ?? []).map((u) => {
+          users: visibleUsers(data ?? [], rr ?? [], !!isSuper).map((u) => {
             const rs = (rr ?? []).filter((x) => x.user_id === u.id).map((x) => x.role);
             return { ...u, role: rs.includes("super_admin") ? "super_admin" : rs[0] ?? "viewer" };
           }),
@@ -135,6 +135,7 @@ Deno.serve(async (req) => {
         const { data: supers } = await sb.from("user_roles").select("user_id").eq("role", "super_admin");
         const superIds = new Set((supers ?? []).map((x) => x.user_id));
         const ids = (admins ?? []).map((x) => x.user_id).filter((x) => !superIds.has(x));
+        const before = ((await sb.from("api_client_exclusions").select("admin_id").eq("client_id", b.id)).data ?? []).map((x) => x.admin_id);
         await sb.from("api_client_exclusions").delete().eq("client_id", b.id);
         if (ids.length) {
           const { error } = await sb.from("api_client_exclusions").insert(ids.map((admin_id) => ({ client_id: b.id, admin_id })));
