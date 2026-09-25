@@ -8,6 +8,7 @@ import { MonitorSubBar } from "@/components/monitoring/MonitorSubBar";
 import { SportTree, type TreeSelection } from "@/components/monitoring/SportTree";
 import { supabase } from "@/integrations/supabase/client";
 import { useMatches, useSportTree } from "@/lib/feed/queries";
+import { matchesMonitorFilters, readMonitorFilters } from "@/lib/feed/filters";
 import type { LeagueTab, MatchRow, MonitorFilters } from "@/lib/feed/types";
 import { friendlyError } from "@/lib/errors";
 
@@ -24,7 +25,9 @@ export default function MonitorMatches() {
     categoryIds: [],
     tournamentIds: [],
   });
-  const [filters, setFilters] = useState<MonitorFilters>({});
+  const [filters, setFilters] = useState<MonitorFilters>(() =>
+    readMonitorFilters(typeof window === "undefined" ? undefined : window.localStorage),
+  );
   const [term, setTerm] = useState("");
   const [tabs, setTabs] = useState<LeagueTab[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -37,26 +40,7 @@ export default function MonitorMatches() {
   const { data: matches = [], isLoading, isError } = useMatches(effectiveSelection);
 
   const filtered = useMemo(() => {
-    const q = term.trim().toLowerCase();
-    const in24h = (m: MatchRow) =>
-      new Date(m.scheduled).getTime() - Date.now() < 24 * 3600 * 1000;
-
-    return matches.filter((m) => {
-      if (filters.alerted && !m.alerted) return false;
-      if (filters.hotlisted && !m.hotlisted) return false;
-      if (filters.commented && m.commentCount === 0) return false;
-      if (filters.semiAuto && m.controlMode !== "semi_auto") return false;
-      if (filters.manual && m.controlMode !== "manual") return false;
-      if (filters.controllable && m.controlMode === "locked") return false;
-      if (filters.withOdds && m.odds.length === 0) return false;
-      if (filters.withOwnOdds && !m.odds.some((o) => o.source === "own")) return false;
-      if (filters.hours24 && !in24h(m)) return false;
-      if (filters.providerOnly && !m.providerOnly) return false;
-      if (filters.withEarlyOdds && !m.earlyOdds) return false;
-      if (filters.earlyOddsAvailable && !m.earlyOdds) return false;
-      if (q && !`${m.homeTeam} ${m.awayTeam} ${m.tournamentName}`.toLowerCase().includes(q)) return false;
-      return true;
-    });
+    return matches.filter((match) => matchesMonitorFilters(match, filters, term)).slice(0, 500);
   }, [matches, filters, term]);
 
   useEffect(() => {

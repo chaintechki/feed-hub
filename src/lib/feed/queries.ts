@@ -87,33 +87,47 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
       };
       const now = Date.now();
       const ago = (h: number) => new Date(now - h * 3600_000).toISOString();
-      const [liveRes, upRes] = await Promise.all([
-        scope(supabase.from("matches").select(cols).in("status", ["live", "suspended", "interrupted"]).gte("scheduled", ago(12)))
-          .order("scheduled")
-          .limit(200),
-        scope(supabase.from("matches").select(cols).gte("scheduled", ago(3)).not("status", "in", "(ended,closed,cancelled,abandoned,postponed)"))
-          .order("scheduled")
-          .limit(500),
-      ]);
-      if (liveRes.error) throw liveRes.error;
-      if (upRes.error) throw upRes.error;
-      const rows = [...new Map([...(liveRes.data ?? []), ...(upRes.data ?? [])].map((r) => [r.id, r as DbMatch])).values()];
+      const PAGE_SIZE = 1000;
+      const fetchPages = async (kind: "live" | "upcoming") => {
+        const found: DbMatch[] = [];
+        for (let from = 0; ; from += PAGE_SIZE) {
+          let query = scope(supabase.from("matches").select(cols));
+          query = kind === "live"
+            ? query.in("status", ["live", "suspended", "interrupted"]).gte("scheduled", ago(12))
+            : query.gte("scheduled", ago(3)).not("status", "in", "(ended,closed,cancelled,abandoned,postponed)");
+          const { data, error } = await query.order("scheduled").range(from, from + PAGE_SIZE - 1);
+          if (error) throw error;
+          const page = (data ?? []) as DbMatch[];
+          found.push(...page);
+          if (page.length < PAGE_SIZE) break;
+        }
+        return found;
+      };
+      const [liveRows, upcomingRows] = await Promise.all([fetchPages("live"), fetchPages("upcoming")]);
+      const rows = [...new Map([...liveRows, ...upcomingRows].map((row) => [row.id, row])).values()];
       if (!rows.length) return [];
 
       const ids = rows.map((r) => r.id);
       const idChunks = Array.from({ length: Math.ceil(ids.length / 75) }, (_, index) => ids.slice(index * 75, index * 75 + 75));
+      const queryChunks = async <T>(run: (chunk: string[]) => PromiseLike<T>) => {
+        const results: T[] = [];
+        for (let index = 0; index < idChunks.length; index += 8) {
+          results.push(...await Promise.all(idChunks.slice(index, index + 8).map(run)));
+        }
+        return results;
+      };
       const since = new Date(Date.now() - HEAT_WINDOW_MS).toISOString();
       const [oddsResults, { data: tours, error: toursError }, { data: cats, error: catsError }, { data: sports, error: sportsError }, histResults, alertResults, logResults] = await Promise.all([
-        Promise.all(idChunks.map((chunk) => supabase
+        queryChunks((chunk) => supabase
           .from("match_odds")
           .select("match_id,source,market,specifier,outcomes,margin,suspended,control_mode,market_group,alerted,updated_at")
-          .in("match_id", chunk))),
+          .in("match_id", chunk)),
         supabase.from("tournaments").select("id,name"),
         supabase.from("categories").select("id,name"),
         supabase.from("sports").select("id,name"),
-        Promise.all(idChunks.map((chunk) => supabase.from("odds_history").select("match_id,market,specifier,outcome,odds,prev_odds,changed_at").in("match_id", chunk).gte("changed_at", since).order("changed_at"))),
-        Promise.all(idChunks.map((chunk) => supabase.from("alerts").select("match_id,score").in("match_id", chunk).is("acknowledged_at", null))),
-        Promise.all(idChunks.map((chunk) => supabase.from("alert_log").select("match_id").in("match_id", chunk))),
+        queryChunks((chunk) => supabase.from("odds_history").select("match_id,market,specifier,outcome,odds,prev_odds,changed_at").in("match_id", chunk).gte("changed_at", since).order("changed_at")),
+        queryChunks((chunk) => supabase.from("alerts").select("match_id,score").in("match_id", chunk).is("acknowledged_at", null)),
+        queryChunks((chunk) => supabase.from("alert_log").select("match_id").in("match_id", chunk)),
       ]);
       const failed = [
         ...oddsResults.map((result) => result.error),
