@@ -1,4 +1,4 @@
-import { Plus, X } from "lucide-react";
+import { Plus, Sparkles, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
 
@@ -38,7 +38,8 @@ export function MonitorSubBar({
       <NavLink to="/monitoring/outrights" className={linkClass}>
         {t("nav.monitorOutrights")}
       </NavLink>
-      <NavLink to="/monitoring/assistant" className={linkClass}>
+      <NavLink to="/monitoring/assistant" data-testid="assistant-tab" className={(p) => cn(linkClass(p), "gap-1.5 text-primary")}>
+        <Sparkles className="h-3.5 w-3.5" />
         {t("nav.monitorAssistant")}
       </NavLink>
 

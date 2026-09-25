@@ -522,5 +522,9 @@
     "hide": "Outrights ausblenden",
     "loading": "Lade…",
     "empty": "Keine Outrights für die aktuelle Auswahl."
+  },
+  "preload": {
+    "loading": "Lade Spiele {{matches}} · Quoten {{pct}} %",
+    "shown": "{{count}} von {{total}} Spielen"
   }
 }

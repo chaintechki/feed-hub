@@ -1,4 +1,4 @@
-import { ChevronDown, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -29,6 +29,10 @@ export function NavBar() {
     <nav className="flex h-11 shrink-0 items-center bg-navbar">
       <NavLink to="/monitoring/matches" className={linkClass}>
         {t("nav.monitoring")}
+      </NavLink>
+      <NavLink to="/monitoring/assistant" className={(p) => cn(linkClass(p), "gap-1.5")}>
+        <Sparkles className="h-3.5 w-3.5" />
+        {t("nav.monitorAssistant")}
       </NavLink>
       <NavLink to="/alerts" className={linkClass}>
         {t("nav.alerts")}

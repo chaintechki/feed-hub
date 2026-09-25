@@ -1,16 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ActiveFilterChips } from "@/components/monitoring/ActiveFilterChips";
 import { FilterBar } from "@/components/monitoring/FilterBar";
 import { MatchGrid } from "@/components/monitoring/MatchGrid";
+import { LoadProgressBar } from "@/components/monitoring/LoadProgressBar";
 import { OutrightsPanel } from "@/components/monitoring/OutrightsPanel";
 import { MonitorSubBar } from "@/components/monitoring/MonitorSubBar";
 import { SportTree, type TreeSelection } from "@/components/monitoring/SportTree";
 import { supabase } from "@/integrations/supabase/client";
 import { useMatches, useSportTree } from "@/lib/feed/queries";
-import { activeFilterChips, matchesMonitorFilters, readMonitorFilters, type ActiveChip } from "@/lib/feed/filters";
+import { activeFilterChips, matchesMonitorFilters, matchesTreeScope, readMonitorFilters, type ActiveChip } from "@/lib/feed/filters";
 import type { LeagueTab, MatchRow, MonitorFilters } from "@/lib/feed/types";
 import { friendlyError } from "@/lib/errors";
 
@@ -19,6 +20,8 @@ type MatchPatch = Partial<{
   hotlisted: boolean;
   control_mode: string;
 }>;
+
+const ALL = { sportIds: [], categoryIds: [], tournamentIds: [] };
 
 export default function MonitorMatches() {
   const queryClient = useQueryClient();
@@ -39,11 +42,17 @@ export default function MonitorMatches() {
     () => (activeTab ? { sportIds: [], categoryIds: [], tournamentIds: [activeTab] } : selection),
     [activeTab, selection],
   );
-  const { data: matches = [], isLoading, isError } = useMatches(effectiveSelection);
+  // Load the full set once; tree scope, flags and search are applied locally.
+  const { data: matches = [], isLoading, isError } = useMatches(ALL);
+  const deferredTerm = useDeferredValue(term);
+  const deferredScope = useDeferredValue(effectiveSelection);
 
   const filtered = useMemo(() => {
-    return matches.filter((match) => matchesMonitorFilters(match, filters, term)).slice(0, 500);
-  }, [matches, filters, term]);
+    const now = Date.now();
+    return matches.filter(
+      (match) => matchesTreeScope(match, deferredScope) && matchesMonitorFilters(match, filters, deferredTerm, now),
+    );
+  }, [matches, filters, deferredTerm, deferredScope]);
 
   const chips = useMemo(() => {
     const names = new Map<string, string>();
@@ -88,6 +97,10 @@ export default function MonitorMatches() {
     onError: (error: Error) => toast.error(friendlyError(error)),
   });
 
+  const { mutate } = patchMatch;
+  const toggleSuspend = useCallback((m: MatchRow) => mutate({ id: m.id, patch: { suspended: !m.suspended } }), [mutate]);
+  const toggleHotlist = useCallback((m: MatchRow) => mutate({ id: m.id, patch: { hotlisted: !m.hotlisted } }), [mutate]);
+
   function addTabsFromSelection() {
     const names = new Map<string, string>();
     for (const sport of tree)
@@ -124,12 +137,13 @@ export default function MonitorMatches() {
         <div className="flex min-h-0 flex-1 flex-col">
           <FilterBar filters={filters} onChange={setFilters} term={term} onTermChange={setTerm} />
           <ActiveFilterChips chips={chips} onRemove={removeChip} onClearAll={clearAll} />
+          <LoadProgressBar count={filtered.length} total={matches.length} />
           <MatchGrid
             matches={filtered}
             isLoading={isLoading}
             isError={isError}
-            onToggleSuspend={(m) => patchMatch.mutate({ id: m.id, patch: { suspended: !m.suspended } })}
-            onToggleHotlist={(m) => patchMatch.mutate({ id: m.id, patch: { hotlisted: !m.hotlisted } })}
+            onToggleSuspend={toggleSuspend}
+            onToggleHotlist={toggleHotlist}
           />
         </div>
         <OutrightsPanel tournamentIds={selection.tournamentIds} />

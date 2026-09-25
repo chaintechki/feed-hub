@@ -522,5 +522,9 @@
     "hide": "Hide outrights",
     "loading": "Loading…",
     "empty": "No outrights for the current selection."
+  },
+  "preload": {
+    "loading": "Loading matches {{matches}} · odds {{pct}}%",
+    "shown": "{{count}} of {{total}} matches"
   }
 }

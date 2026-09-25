@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useDeferredValue } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useSportTree } from "@/lib/feed/queries";
@@ -43,10 +43,11 @@ export function SportTree({
   const [openCats, setOpenCats] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState(false);
 
+  const deferredTerm = useDeferredValue(term);
   const sports = useMemo(() => {
     const base = mode === "active" ? data.filter((s) => s.matchCount > 0) : data;
-    if (!term.trim()) return base;
-    const q = term.toLowerCase();
+    if (!deferredTerm.trim()) return base;
+    const q = deferredTerm.toLowerCase();
     return base
       .map((s) => ({
         ...s,
@@ -60,7 +61,7 @@ export function SportTree({
           ),
       }))
       .filter((s) => s.name.toLowerCase().includes(q) || s.categories.length > 0);
-  }, [data, mode, term]);
+  }, [data, mode, deferredTerm]);
 
   const toggle = (list: string[], id: string) =>
     list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
