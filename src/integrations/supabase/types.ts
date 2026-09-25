@@ -1456,6 +1456,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      db_cleanup: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1469,6 +1470,7 @@ export type Database = {
         Returns: boolean
       }
       top_role: { Args: { _user: string }; Returns: string }
+      upsert_match_odds: { Args: { _rows: Json }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "trader" | "viewer" | "super_admin"
