@@ -29,6 +29,7 @@ const LaddersPage = lazy(() => import("@/pages/config/LaddersPage"));
 const BookmakerListsPage = lazy(() => import("@/pages/config/BookmakerListsPage"));
 const FeedOptionsPage = lazy(() => import("@/pages/config/FeedOptionsPage"));
 const OutrightsConfigPage = lazy(() => import("@/pages/config/OutrightsConfigPage"));
+const OperationsPage = lazy(() => import("@/pages/config/OperationsPage"));
 const UserSettingsPage = lazy(() => import("@/pages/UserSettingsPage"));
 const ApiDocsPage = lazy(() => import("@/pages/ApiDocsPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
@@ -83,6 +84,7 @@ export default function App() {
                     <Route path="bookmakers" element={<BookmakerListsPage />} />
                     <Route path="feed-options" element={<FeedOptionsPage />} />
                     <Route path="outrights" element={<OutrightsConfigPage />} />
+                    <Route path="operations" element={<OperationsPage />} />
                   </Route>
                   <Route path="/api-docs" element={<ApiDocsPage />} />
                   <Route path="/settings" element={<UserSettingsPage />} />
