@@ -126,8 +126,9 @@ Deno.serve(async (req) => {
   const rows = [...oddsRows.values()];
   // rows without outcomes only toggle suspension
   const full = rows.filter((r) => r.outcomes), partial = rows.filter((r) => !r.outcomes);
+  // Only rows whose odds/suspension actually changed are written (see upsert_match_odds).
   for (let i = 0; i < full.length; i += 500) {
-    const { error } = await sb.from("match_odds").upsert(full.slice(i, i + 500), { onConflict: "match_id,source,market,specifier" });
+    const { error } = await sb.rpc("upsert_match_odds", { _rows: full.slice(i, i + 500) });
     if (error) errors.push({ kind: "odds", error: error.message });
   }
   // Batch suspension toggles: one update per (market, state) instead of one per row.
@@ -141,12 +142,12 @@ Deno.serve(async (req) => {
   for (const g of groups.values()) {
     const ids = [...g.ids];
     for (let i = 0; i < ids.length; i += 150) {
-      const { error } = await sb.from("match_odds").update({ suspended: g.suspended }).eq("market", g.market).in("match_id", ids.slice(i, i + 150));
+      const { error } = await sb.from("match_odds").update({ suspended: g.suspended }).eq("market", g.market).neq("suspended", g.suspended).in("match_id", ids.slice(i, i + 150));
       if (error) errors.push({ kind: "suspend", error: error.message });
     }
   }
   for (const [id, u] of matchUpd) await sb.from("matches").update(u).eq("id", id);
-  if (stops.size) await sb.from("match_odds").update({ suspended: true }).in("match_id", [...stops]);
+  if (stops.size) await sb.from("match_odds").update({ suspended: true }).eq("suspended", false).in("match_id", [...stops]);
   if (settle.length) await sb.from("settlements").insert(settle);
   if (producers.size) await sb.from("uof_producers").upsert([...producers.values()].map((p) => ({ ...p, updated_at: new Date().toISOString() })), { onConflict: "id" });
   if (errors.length) await sb.from("uof_messages_log").insert(errors.slice(0, 50).map((e) => ({ kind: e.kind, event_id: e.event_id ?? null, error: e.error.slice(0, 500) })));
