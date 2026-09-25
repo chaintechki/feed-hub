@@ -374,7 +374,7 @@ export function MatchGrid({
   const cmps = useComparisons(visibleMatches);
 
   return (
-    <div ref={scrollRef} data-testid="match-scroll" className="panel-scroll min-h-0 flex-1 overflow-auto bg-panel">
+    <div ref={scrollRef} data-testid="match-scroll" data-count={matches.length} className="panel-scroll min-h-0 flex-1 overflow-auto bg-panel">
       <div className="min-w-[1180px]">
         {/* column header */}
         <div className="sticky top-0 z-10 grid grid-cols-[420px_180px_1fr_1fr_1fr] border-b border-border bg-panel-header text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
