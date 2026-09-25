@@ -77,23 +77,27 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
   return useQuery({
     queryKey: ["matches", selection],
     queryFn: async (): Promise<MatchRow[]> => {
-      const currentWindowStart = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
-      let query = supabase
-        .from("matches")
-        .select(
-          "id,sport_id,category_id,tournament_id,home_team,away_team,scheduled,status,liveodds,match_minute,booked,suspended,hotlisted,alerted,control_mode,comment_count,early_odds,provider_only,margin_skewed",
-        )
-        .gte("scheduled", currentWindowStart)
-        .order("scheduled")
-        .limit(500);
-
-      if (selection.tournamentIds.length) query = query.in("tournament_id", selection.tournamentIds);
-      else if (selection.categoryIds.length) query = query.in("category_id", selection.categoryIds);
-      else if (selection.sportIds.length) query = query.in("sport_id", selection.sportIds);
-
-      const { data, error } = await query;
-      if (error) throw error;
-      const rows = (data ?? []) as DbMatch[];
+      const cols =
+        "id,sport_id,category_id,tournament_id,home_team,away_team,scheduled,status,liveodds,match_minute,booked,suspended,hotlisted,alerted,control_mode,comment_count,early_odds,provider_only,margin_skewed";
+      const scope = <T extends { in: (c: string, v: string[]) => T }>(q: T): T => {
+        if (selection.tournamentIds.length) return q.in("tournament_id", selection.tournamentIds);
+        if (selection.categoryIds.length) return q.in("category_id", selection.categoryIds);
+        if (selection.sportIds.length) return q.in("sport_id", selection.sportIds);
+        return q;
+      };
+      const now = Date.now();
+      const ago = (h: number) => new Date(now - h * 3600_000).toISOString();
+      const [liveRes, upRes] = await Promise.all([
+        scope(supabase.from("matches").select(cols).in("status", ["live", "suspended", "interrupted"]).gte("scheduled", ago(12)))
+          .order("scheduled")
+          .limit(200),
+        scope(supabase.from("matches").select(cols).gte("scheduled", ago(3)).not("status", "in", "(ended,closed,cancelled,abandoned,postponed)"))
+          .order("scheduled")
+          .limit(500),
+      ]);
+      if (liveRes.error) throw liveRes.error;
+      if (upRes.error) throw upRes.error;
+      const rows = [...new Map([...(liveRes.data ?? []), ...(upRes.data ?? [])].map((r) => [r.id, r as DbMatch])).values()];
       if (!rows.length) return [];
 
       const ids = rows.map((r) => r.id);
@@ -143,8 +147,13 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
           })
           .map((o) => o.match_id),
       );
-      const sorted = [...rows].sort(
-        (a, b) => Number(withUsableOdds.has(b.id)) - Number(withUsableOdds.has(a.id)) || a.scheduled.localeCompare(b.scheduled),
+      const LIVE = new Set(["live", "suspended", "interrupted"]);
+      const nowIso = new Date(now).toISOString();
+      // Started matches without any open odds and not live are finished in practice — hide them.
+      const visible = rows.filter((m) => m.scheduled > nowIso || LIVE.has(m.status) || withUsableOdds.has(m.id));
+      const rank = (m: DbMatch) => (withUsableOdds.has(m.id) ? 0 : LIVE.has(m.status) ? 1 : 2);
+      const sorted = [...visible].sort(
+        (a, b) => rank(a) - rank(b) || a.scheduled.localeCompare(b.scheduled),
       );
       return sorted.map((m) => ({
         id: m.id,
