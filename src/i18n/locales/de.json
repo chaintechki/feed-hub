@@ -410,5 +410,22 @@
   "apiClients": {
     "marketGroups": "Marktgruppen",
     "marketGroupsHint": "Keine Auswahl = alle Märkte"
+  },
+  "audit": {
+    "title": "Audit-Log",
+    "user": "Benutzer",
+    "role": "Rolle",
+    "action": "Aktion",
+    "target": "Ziel",
+    "change": "Vorher → Nachher",
+    "when": "Zeitpunkt",
+    "all": "Alle Aktionen",
+    "roles": "Rollen",
+    "visibility": "Sichtbarkeit",
+    "verify": "Integrität prüfen",
+    "ok": "Protokoll unverändert ({{n}} Einträge geprüft)",
+    "broken": "Manipulation erkannt bei Eintrag #{{seq}}",
+    "adminOnly": "Das Audit-Log ist nur für Administratoren sichtbar.",
+    "immutable": "Einträge sind fälschungssicher verkettet und können nicht geändert oder gelöscht werden."
   }
 }
