@@ -4,6 +4,7 @@ import { z } from "npm:zod@3";
 
 import { originAllowed, overUserLimit, passwordLeaked } from "../_shared/guard.ts";
 import { USERNAME_DOMAIN, USERNAME_RE, passwordValid, pepperPassword } from "../_shared/auth-core.ts";
+import { requestMeta, visibleUsers } from "../_shared/visibility.ts";
 
 const DOMAIN = USERNAME_DOMAIN;
 const Password = z.string().max(128).refine(passwordValid, "weak_password");
@@ -74,8 +75,11 @@ Deno.serve(async (req) => {
     const rolesFor = (id: string, role: string) =>
       role === "super_admin" ? [{ user_id: id, role: "super_admin" }, { user_id: id, role: "admin" }] : [{ user_id: id, role }];
 
+    const meta = requestMeta(req);
     const audit = (action: string, id: string, details: Record<string, unknown> = {}) =>
-      admin.from("audit_log").insert({ user_id: me, action, entity: "user", entity_id: id, details });
+      admin.from("audit_log").insert({ user_id: me, action, entity: "user", entity_id: id, details: { ...details, ...meta } });
+    const rolesOf = async (id: string) =>
+      ((await admin.from("user_roles").select("role").eq("user_id", id)).data ?? []).map((r) => r.role as string);
 
     switch (b.action) {
       case "check_username": {
@@ -92,11 +96,7 @@ Deno.serve(async (req) => {
         const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
         if (error) throw error;
         const { data: roles } = await admin.from("user_roles").select("user_id,role");
-        const superIds = new Set(
-          (roles ?? []).filter((r) => r.role === "super_admin").map((r) => r.user_id),
-        );
-        const users = data.users
-          .filter((u) => isSuper || !superIds.has(u.id))
+        const users = visibleUsers(data.users, roles ?? [], !!isSuper)
           .map((u) => ({
             id: u.id,
             username: (u.user_metadata?.username as string) ?? u.email?.split("@")[0] ?? "",
@@ -123,10 +123,11 @@ Deno.serve(async (req) => {
         return json({ id });
       }
       case "set_role": {
+        const before = await rolesOf(b.user_id);
         await admin.from("user_roles").delete().eq("user_id", b.user_id);
         const { error } = await admin.from("user_roles").insert(rolesFor(b.user_id, b.role));
         if (error) throw error;
-        await audit("user.set_role", b.user_id, { role: b.role });
+        await audit("user.set_role", b.user_id, { role: b.role, before, after: rolesFor(b.user_id, b.role).map((r) => r.role) });
         return json({ ok: true });
       }
       case "reset_password": {

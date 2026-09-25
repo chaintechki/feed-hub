@@ -410,5 +410,22 @@
   "apiClients": {
     "marketGroups": "Market groups",
     "marketGroupsHint": "No selection = all markets"
+  },
+  "audit": {
+    "title": "Audit log",
+    "user": "User",
+    "role": "Role",
+    "action": "Action",
+    "target": "Target",
+    "change": "Before → After",
+    "when": "When",
+    "all": "All actions",
+    "roles": "Roles",
+    "visibility": "Visibility",
+    "verify": "Verify integrity",
+    "ok": "Log intact ({{n}} entries verified)",
+    "broken": "Tampering detected at entry #{{seq}}",
+    "adminOnly": "The audit log is only visible to administrators.",
+    "immutable": "Entries are hash-chained and cannot be changed or deleted."
   }
 }

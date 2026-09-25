@@ -4,6 +4,7 @@ import { z } from "npm:zod@3";
 import { db, sha256 } from "../_shared/feed.ts";
 import { isValidIpRule } from "../_shared/api-core.ts";
 import { originAllowed, overUserLimit } from "../_shared/guard.ts";
+import { requestMeta, visibleClients, visibleUsers } from "../_shared/visibility.ts";
 
 const Id = z.string().uuid();
 const ClientFields = z.object({
@@ -85,8 +86,9 @@ Deno.serve(async (req) => {
     if (p.data.action !== "list" && (await overUserLimit(sb, me, "api-clients-admin", 30)))
       return json({ error: "rate_limited" }, 429);
     const b = p.data;
+    const meta = requestMeta(req);
     const audit = (action: string, id: string, details: Record<string, unknown> = {}) =>
-      sb.from("audit_log").insert({ user_id: me, action, entity: "api_client", entity_id: id, details });
+      sb.from("audit_log").insert({ user_id: me, action, entity: "api_client", entity_id: id, details: { ...details, ...meta } });
 
     switch (b.action) {
       case "list": {
@@ -99,12 +101,7 @@ Deno.serve(async (req) => {
           sb.from("api_client_exclusions").select("client_id,admin_id"),
         ]);
         const exRows = ex.data ?? [];
-        const c = {
-          data: (c0.data ?? []).filter((x) =>
-            isSuper ? true
-            : isAdmin ? !exRows.some((e) => e.client_id === x.id && e.admin_id === me)
-            : x.owner_id === me),
-        };
+        const c = { data: visibleClients(c0.data ?? [], exRows, me, !!isSuper, !!isAdmin) };
         const names: Record<string, string> = {};
         for (const r of pr.data ?? []) names[r.id] = r.username ?? "";
         const usage: Record<string, number> = {};
@@ -127,7 +124,7 @@ Deno.serve(async (req) => {
           sb.from("user_roles").select("user_id,role"),
         ]);
         return json({
-          users: (data ?? []).map((u) => {
+          users: visibleUsers(data ?? [], rr ?? [], !!isSuper).map((u) => {
             const rs = (rr ?? []).filter((x) => x.user_id === u.id).map((x) => x.role);
             return { ...u, role: rs.includes("super_admin") ? "super_admin" : rs[0] ?? "viewer" };
           }),
@@ -138,12 +135,13 @@ Deno.serve(async (req) => {
         const { data: supers } = await sb.from("user_roles").select("user_id").eq("role", "super_admin");
         const superIds = new Set((supers ?? []).map((x) => x.user_id));
         const ids = (admins ?? []).map((x) => x.user_id).filter((x) => !superIds.has(x));
+        const before = ((await sb.from("api_client_exclusions").select("admin_id").eq("client_id", b.id)).data ?? []).map((x) => x.admin_id);
         await sb.from("api_client_exclusions").delete().eq("client_id", b.id);
         if (ids.length) {
           const { error } = await sb.from("api_client_exclusions").insert(ids.map((admin_id) => ({ client_id: b.id, admin_id })));
           if (error) return json({ error: error.message }, 400);
         }
-        await audit("api_client.exclusions", b.id, { admin_ids: ids });
+        await audit("api_client.exclusions", b.id, { admin_ids: ids, before, after: ids });
         return json({ ok: true });
       }
       case "assign": {
