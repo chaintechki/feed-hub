@@ -258,13 +258,15 @@ write_common_locations() {
     index index.html;
 
     # Backend proxy – customers and the browser only see https://$DOMAIN
-    location ^~ /api/          { proxy_pass $UPSTREAM/functions/v1/;  include /etc/nginx/snippets/feed-panel-proxy.conf; proxy_read_timeout 60s; }
-    location ^~ /functions/v1/ { proxy_pass $UPSTREAM/functions/v1/;  include /etc/nginx/snippets/feed-panel-proxy.conf; proxy_read_timeout 60s; }
-    location ^~ /auth/v1/      { proxy_pass $UPSTREAM/auth/v1/;       include /etc/nginx/snippets/feed-panel-proxy.conf; proxy_read_timeout 60s; }
-    location ^~ /rest/v1/      { proxy_pass $UPSTREAM/rest/v1/;       include /etc/nginx/snippets/feed-panel-proxy.conf; proxy_read_timeout 60s; }
-    location ^~ /storage/v1/   { proxy_pass $UPSTREAM/storage/v1/;    include /etc/nginx/snippets/feed-panel-proxy.conf; proxy_read_timeout 60s; }
+    # The upstream is a variable, so nginx resolves it at request time and
+    # still starts when DNS is briefly unavailable (boot, renewal reload).
+$(for pair in "api:functions/v1" "functions/v1:functions/v1" "auth/v1:auth/v1" "rest/v1:rest/v1" "storage/v1:storage/v1"; do
+  from="${pair%%:*}"; to="${pair#*:}"
+  printf '    location ^~ /%s/ { set $fp_up %s; rewrite ^/%s/(.*)$ /%s/$1 break; proxy_pass $fp_up; include /etc/nginx/snippets/feed-panel-proxy.conf; proxy_read_timeout 60s; }\n' "$from" "$UPSTREAM" "$from" "$to"
+done)
     location ^~ /realtime/v1/  {
-        proxy_pass $UPSTREAM/realtime/v1/;
+        set \$fp_up $UPSTREAM;
+        proxy_pass \$fp_up;
         include /etc/nginx/snippets/feed-panel-proxy.conf;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
@@ -300,6 +302,8 @@ NGINX
 write_proxy_snippet() {
   mkdir -p /etc/nginx/snippets
   cat > /etc/nginx/snippets/feed-panel-proxy.conf <<NGINX
+resolver 127.0.0.53 1.1.1.1 8.8.8.8 valid=300s ipv6=off;
+resolver_timeout 5s;
 proxy_set_header Host $UPSTREAM_HOST;
 proxy_ssl_server_name on;
 proxy_ssl_name $UPSTREAM_HOST;
@@ -465,7 +469,7 @@ if [ "$HTTPS_OK" = 1 ]; then
   mkdir -p /etc/letsencrypt/renewal-hooks/deploy
   cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh <<'HOOK'
 #!/bin/sh
-systemctl reload nginx
+if nginx -t >/dev/null 2>&1; then systemctl reload nginx || systemctl restart nginx; fi
 HOOK
   chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
   if systemctl list-unit-files | grep -q '^certbot.timer'; then
@@ -475,6 +479,87 @@ HOOK
   fi
   certbot renew --dry-run --quiet || echo "    Warning: renewal dry-run failed – check 'certbot renew --dry-run'."
 fi
+
+# ---------------------------------------------------------------- 5b. keep nginx alive
+log "Hardening nginx (auto-restart, limits, watchdog)"
+mkdir -p /etc/systemd/system/nginx.service.d
+cat > /etc/systemd/system/nginx.service.d/feed-panel.conf <<'UNIT'
+[Unit]
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Restart=always
+RestartSec=3
+LimitNOFILE=65536
+UNIT
+NGX=/etc/nginx/nginx.conf
+grep -q '^worker_rlimit_nofile' "$NGX" || sed -i '/^worker_processes/a worker_rlimit_nofile 16384;' "$NGX"
+sed -i -E 's/^([[:space:]]*worker_connections)[[:space:]]+[0-9]+;/\1 4096;/' "$NGX"
+
+# Bounded logs so a full disk can never stop nginx
+cat > /etc/logrotate.d/nginx <<'ROT'
+/var/log/nginx/*.log {
+    daily
+    rotate 14
+    missingok
+    notifempty
+    compress
+    delaycompress
+    sharedscripts
+    create 0640 www-data adm
+    postrotate
+        [ -s /run/nginx.pid ] && kill -USR1 `cat /run/nginx.pid`
+    endscript
+}
+ROT
+mkdir -p /etc/systemd/journald.conf.d
+printf '[Journal]\nSystemMaxUse=500M\n' > /etc/systemd/journald.conf.d/feed-panel.conf
+systemctl restart systemd-journald || true
+
+# Watchdog: every minute check nginx, feed worker and the public site
+cat > /usr/local/bin/feed-panel-watchdog <<WD
+#!/bin/bash
+DOMAIN="$DOMAIN"
+WD
+cat >> /usr/local/bin/feed-panel-watchdog <<'WD'
+say() { logger -t feed-panel-watchdog "$*"; }
+if ! systemctl is-active --quiet nginx; then
+  say "nginx down – restarting"; nginx -t 2>&1 | logger -t feed-panel-watchdog; systemctl restart nginx
+fi
+if systemctl list-unit-files feed-worker.service >/dev/null 2>&1 && systemctl is-enabled --quiet feed-worker && ! systemctl is-active --quiet feed-worker; then
+  say "feed-worker down – restarting"; systemctl restart feed-worker
+fi
+URL="https://$DOMAIN/version.json"; [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ] || URL="http://$DOMAIN/version.json"
+CODE="$(curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve "$DOMAIN:443:127.0.0.1" --resolve "$DOMAIN:80:127.0.0.1" "$URL" || echo 000)"
+if [ "$CODE" != 200 ]; then
+  sleep 5
+  CODE="$(curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve "$DOMAIN:443:127.0.0.1" --resolve "$DOMAIN:80:127.0.0.1" "$URL" || echo 000)"
+  [ "$CODE" = 200 ] || { say "site answered $CODE – restarting nginx"; nginx -t && systemctl restart nginx; }
+fi
+WD
+chmod 755 /usr/local/bin/feed-panel-watchdog
+cat > /etc/systemd/system/feed-panel-watchdog.service <<'UNIT'
+[Unit]
+Description=Feed Panel watchdog (nginx, feed worker, site)
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/feed-panel-watchdog
+UNIT
+cat > /etc/systemd/system/feed-panel-watchdog.timer <<'UNIT'
+[Unit]
+Description=Run Feed Panel watchdog every minute
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=10s
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now feed-panel-watchdog.timer >/dev/null
+ok "nginx auto-restart + watchdog active"
 
 # Final full restart so every change is definitely active
 nginx -t && systemctl restart nginx
@@ -592,6 +677,8 @@ printf '    %-16s %s\n' \
   "Certificate" "$CERT_END" \
   "Firewall" "$(ufw status | head -1 | cut -d' ' -f2)" \
   "fail2ban" "$(systemctl is-active fail2ban)" \
+  "nginx restart" "$(systemctl show nginx -p Restart --value)" \
+  "Watchdog" "$(systemctl is-active feed-panel-watchdog.timer)" \
   "Feed worker" "$(systemctl is-active feed-worker 2>/dev/null || echo 'not installed')" \
   "Version" "$(cat "$STATE_DIR/version" 2>/dev/null || echo '?')"
 if [ "$HTTPS_OK" = 1 ]; then echo "    Live at https://$DOMAIN"; else echo "    Live at http://$DOMAIN (HTTPS pending DNS)"; fi
