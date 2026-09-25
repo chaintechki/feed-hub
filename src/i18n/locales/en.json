@@ -11,7 +11,8 @@
     "oddsFormat": "Odds format",
     "monitorMatches": "Monitor Matches",
     "monitorOutrights": "Monitor Outrights",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "monitorAssistant": "AI analysis"
   },
   "tree": {
     "activeTree": "Active tree",
@@ -466,5 +467,33 @@
     "avgLoad": "Avg load time",
     "entries": "Entries",
     "refreshed": "Last refresh"
+  },
+  "activeFilters": {
+    "label": "Active filters",
+    "clearAll": "Clear all",
+    "remove": "Remove filter",
+    "search": "Search",
+    "selection": "Selection",
+    "tab": "League tab"
+  },
+  "assistant": {
+    "title": "Feed analysis",
+    "subtitle": "Ask about matches and odds in the feed",
+    "newConversation": "New conversation",
+    "emptyTitle": "What would you like to find in the feed?",
+    "emptyText": "The assistant searches loaded matches and odds and summarises the results.",
+    "ex1": "Which soccer matches in the next 6 hours have odds?",
+    "ex2": "How many live matches are there per sport right now?",
+    "ex3": "Which tennis matches today have no odds?",
+    "placeholder": "Question about matches or odds…",
+    "thinking": "Analysing feed…",
+    "failed": "The analysis failed.",
+    "rateLimited": "Too many requests – please wait a moment.",
+    "noCredits": "AI credits exhausted.",
+    "tools": {
+      "search_matches": "Match search",
+      "get_match_odds": "Fetch odds",
+      "feed_summary": "Feed summary"
+    }
   }
 }

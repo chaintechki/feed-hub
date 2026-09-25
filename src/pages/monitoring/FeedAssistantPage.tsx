@@ -1,6 +1,6 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { Database, ListChecks, Search, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -16,7 +16,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
 
 const ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/feed-assistant`;
-const TOOL_ICONS: Record<string, typeof Search> = { search_matches: Search, get_match_odds: ListChecks, feed_summary: Database };
 
 function ChatWindow({ initial }: { initial: UIMessage[] }) {
   const { t } = useTranslation();
@@ -85,7 +84,7 @@ function ChatWindow({ initial }: { initial: UIMessage[] }) {
       <Conversation className="min-h-0 flex-1">
         <ConversationContent>
           {messages.length === 0 ? (
-            <ConversationEmptyState icon={<img src={analystIcon} alt="" className="h-14 w-14" />} title={t("assistant.emptyTitle")} description={t("assistant.emptyText")}>
+            <ConversationEmptyState>
               <img src={analystIcon} alt="" className="h-14 w-14" />
               <div className="text-sm font-semibold">{t("assistant.emptyTitle")}</div>
               <div className="text-xs text-muted-foreground">{t("assistant.emptyText")}</div>
@@ -107,10 +106,9 @@ function ChatWindow({ initial }: { initial: UIMessage[] }) {
                     if (part.type.startsWith("tool-") && "state" in part) {
                       const tp = part as Parameters<typeof ToolHeader>[0] & { input: unknown; output?: unknown; errorText?: string };
                       const name = part.type.slice(5);
-                      const Icon = TOOL_ICONS[name] ?? Search;
                       return (
                         <Tool key={i} defaultOpen={false}>
-                          <ToolHeader type={tp.type} state={tp.state} title={t(`assistant.tools.${name}`, name)} icon={<Icon className="size-4 text-muted-foreground" />} />
+                          <ToolHeader type={tp.type} state={tp.state} title={t(`assistant.tools.${name}`, name)} />
                           <ToolContent>
                             <ToolInput input={tp.input} />
                             <ToolOutput output={tp.output as never} errorText={tp.errorText} />

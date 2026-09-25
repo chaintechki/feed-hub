@@ -12,6 +12,7 @@ import { AuthProvider } from "@/providers/AuthProvider";
 const AuthPage = lazy(() => import("@/pages/AuthPage"));
 const MonitorMatches = lazy(() => import("@/pages/monitoring/MonitorMatches"));
 const MatchUpPage = lazy(() => import("@/pages/monitoring/MatchUpPage"));
+const FeedAssistantPage = lazy(() => import("@/pages/monitoring/FeedAssistantPage"));
 const MonitorOutrights = lazy(() => import("@/pages/monitoring/MonitorOutrights"));
 const AlertsPage = lazy(() => import("@/pages/AlertsPage"));
 const ArchivePage = lazy(() => import("@/pages/ArchivePage"));
@@ -67,6 +68,7 @@ export default function App() {
                   <Route path="/monitoring/matches" element={<MonitorMatches />} />
                   <Route path="/monitoring/match/:id" element={<MatchUpPage />} />
                   <Route path="/monitoring/outrights" element={<MonitorOutrights />} />
+                  <Route path="/monitoring/assistant" element={<FeedAssistantPage />} />
                   <Route path="/alerts" element={<AlertsPage />} />
                   <Route path="/archive" element={<ArchivePage />} />
                   <Route path="/trading-tools" element={<Navigate to="/trading-tools/margins" replace />} />

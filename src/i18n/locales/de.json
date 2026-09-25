@@ -11,7 +11,8 @@
     "oddsFormat": "Quotenformat",
     "monitorMatches": "Spiele",
     "monitorOutrights": "Outrights",
-    "signOut": "Abmelden"
+    "signOut": "Abmelden",
+    "monitorAssistant": "KI-Analyse"
   },
   "tree": {
     "activeTree": "Aktiver Baum",
@@ -466,5 +467,33 @@
     "avgLoad": "Ø Ladezeit",
     "entries": "Einträge",
     "refreshed": "Letzte Aktualisierung"
+  },
+  "activeFilters": {
+    "label": "Aktive Filter",
+    "clearAll": "Alle entfernen",
+    "remove": "Filter entfernen",
+    "search": "Suche",
+    "selection": "Auswahl",
+    "tab": "Liga-Tab"
+  },
+  "assistant": {
+    "title": "Feed-Analyse",
+    "subtitle": "Fragen zu Spielen und Quoten im Feed stellen",
+    "newConversation": "Neues Gespräch",
+    "emptyTitle": "Was möchten Sie im Feed finden?",
+    "emptyText": "Der Assistent durchsucht die geladenen Spiele und Quoten und fasst die Treffer zusammen.",
+    "ex1": "Welche Fußballspiele in den nächsten 6 Stunden haben Quoten?",
+    "ex2": "Wie viele Live-Spiele gibt es gerade je Sportart?",
+    "ex3": "Welche Tennisspiele heute haben keine Quoten?",
+    "placeholder": "Frage zu Spielen oder Quoten…",
+    "thinking": "Analysiere Feed…",
+    "failed": "Die Analyse ist fehlgeschlagen.",
+    "rateLimited": "Zu viele Anfragen – bitte kurz warten.",
+    "noCredits": "KI-Guthaben aufgebraucht.",
+    "tools": {
+      "search_matches": "Spielsuche",
+      "get_match_odds": "Quoten abrufen",
+      "feed_summary": "Feed-Übersicht"
+    }
   }
 }
