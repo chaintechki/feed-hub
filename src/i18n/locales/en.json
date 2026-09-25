@@ -457,7 +457,7 @@
     "noRuns": "No runs recorded yet.",
     "noData": "No data yet",
     "marketCache": "Market list cache",
-    "marketCacheHint": "Hit = market list served from cache, miss = reloaded from the database. Counters are stored at most once per minute.",
+    "marketCacheHint": "Hit = market list served from cache, miss = reloaded from the database. Counters are stored in batches every few seconds.",
     "source": "Source",
     "hitRate": "Hit rate",
     "hits": "Hits",

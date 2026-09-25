@@ -457,7 +457,7 @@
     "noRuns": "Noch keine Läufe erfasst.",
     "noData": "Noch keine Daten",
     "marketCache": "Marktlisten-Zwischenspeicher",
-    "marketCacheHint": "Treffer = Marktliste aus dem Zwischenspeicher, Fehlschlag = Neuladen aus der Datenbank. Zähler werden höchstens einmal pro Minute gespeichert.",
+    "marketCacheHint": "Treffer = Marktliste aus dem Zwischenspeicher, Fehlschlag = Neuladen aus der Datenbank. Zähler werden gebündelt alle paar Sekunden gespeichert.",
     "source": "Quelle",
     "hitRate": "Trefferquote",
     "hits": "Treffer",

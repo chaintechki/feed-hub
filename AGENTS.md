@@ -1,2 +1,2 @@
 - Audit-Log ist append-only mit SHA-256-Hash-Kette (Trigger audit_chain/audit_immutable); Sichtbarkeitsfilter liegen in supabase/functions/_shared/visibility.ts — eine testbare Quelle für Edge Functions.
-- Betriebskennzahlen: ops_metrics (stündlich via ops_snapshot), cleanup_runs (db_cleanup-Wrapper um db_cleanup_core), cache_stats (In-Memory-Zähler aus _shared/cache-stats.ts, max. 1 Flush/Min.) — Metriken dürfen den Feed nie blockieren.
+- Betriebskennzahlen: ops_metrics (stündlich via ops_snapshot), cleanup_runs (db_cleanup-Wrapper um db_cleanup_core), cache_stats (In-Memory-Zähler aus _shared/cache-stats.ts, max. 1 Flush je 5 s, da Instanzen nur Sekunden leben) — Metriken dürfen den Feed nie blockieren.
