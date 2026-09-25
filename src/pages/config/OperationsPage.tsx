@@ -11,12 +11,12 @@ import { useAuth } from "@/providers/AuthProvider";
 const RANGES = { "24h": 1, "7d": 7, "30d": 30 } as const;
 type Range = keyof typeof RANGES;
 type Metric = { at: string; db_bytes: number; wal_bytes: number | null; cache_hit_pct: number | null; connections: number | null; dead_rows: number | null; tables: { name: string; bytes: number }[] };
-type Run = { id: number; started_at: string; duration_ms: number; ok: boolean; result: Record<string, number> | null; error: string | null };
+type Run = { id: number; started_at: string; duration_ms: number; ok: boolean; result: { odds?: number; history?: number; settlements?: number; matches?: number } | null; error: string | null };
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--danger))", "hsl(var(--muted-foreground))", "hsl(var(--accent-foreground))"];
 const MB = 1024 * 1024;
 
-function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "danger" | "success" }) {
+function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "danger" | "success" | undefined }) {
   return (
     <div className="rounded border border-border bg-card p-3">
       <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</div>
