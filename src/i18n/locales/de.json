@@ -466,7 +466,27 @@
     "dbReads": "DB-Zugriffe",
     "avgLoad": "Ø Ladezeit",
     "entries": "Einträge",
-    "refreshed": "Letzte Aktualisierung"
+    "refreshed": "Letzte Aktualisierung",
+    "statusSync": "Spielstand-Abgleich mit dem Anbieter",
+    "lastStatusSync": "Letzter Abgleich",
+    "statusChecked": "Geprüfte Spiele",
+    "statusErrors": "ohne Antwort",
+    "statusUpdated": "Geänderte Spiele",
+    "statusForced": "automatisch beendet",
+    "serverRam": "RAM Feed-Server",
+    "workerRam": "RAM Feed-Worker",
+    "memWaiting": "Wird nach dem nächsten Abgleich des Feed-Servers gemessen",
+    "aiAccuracy": "Genauigkeit der KI-Analyse",
+    "aiAccuracyHint": "Fester Satz deutscher Testfragen: Prüft, ob die KI die richtige Sportart, Liga und den richtigen Markt sucht. Jede Messung verbraucht KI-Guthaben.",
+    "evalRun": "Genauigkeit messen",
+    "evalRunning": "Messung läuft…",
+    "evalDone": "Genauigkeit: {{pct}} %",
+    "evalFailed": "Messung fehlgeschlagen",
+    "modelAccuracy": "Modellgenauigkeit",
+    "resolverAccuracy": "Wörterbuch-Treffer",
+    "resolverHint": "Erkennung deutscher Begriffe ohne KI",
+    "evalQuestion": "Testfrage",
+    "evalFilters": "Gewählte Filter"
   },
   "activeFilters": {
     "label": "Aktive Filter",
@@ -495,5 +515,12 @@
       "get_match_odds": "Quoten abrufen",
       "feed_summary": "Feed-Übersicht"
     }
+  },
+  "outrights": {
+    "title": "Outrights",
+    "show": "Outrights einblenden",
+    "hide": "Outrights ausblenden",
+    "loading": "Lade…",
+    "empty": "Keine Outrights für die aktuelle Auswahl."
   }
 }

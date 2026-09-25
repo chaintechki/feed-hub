@@ -6,6 +6,7 @@ import { convertToModelMessages, stepCountIs, streamText, tool, type UIMessage }
 import { z } from "npm:zod@3";
 import { db } from "../_shared/feed.ts";
 import { originAllowed, overUserLimit } from "../_shared/guard.ts";
+import { EVAL_SET, leagueName, marketKey, resolveGerman, sportName } from "../_shared/de-sports.ts";
 import { createLovableAiGatewayRunIdFetch, getLovableAiGatewayRunId, withLovableAiGatewayRunIdHeader } from "./run-id.ts";
 
 const cors = {
@@ -36,43 +37,64 @@ function tools(uc: SupabaseClient) {
 
   return {
     search_matches: tool({
-      description: "Search matches in the loaded feed. Filters are optional. Returns up to 40 matches with a flag whether usable (open, numeric) odds exist.",
+      description: "Search matches in the loaded feed. Filters are optional; German terms are accepted (Fußball, Eishockey, Bundesliga, DEL, Über/Unter, Beide treffen …). Returns up to 40 matches with a flag whether usable (open, numeric) odds exist.",
       inputSchema: z.object({
         team: z.string().nullable().describe("Part of a team name"),
-        sport: z.string().nullable().describe("Sport name, e.g. Soccer, Tennis"),
-        tournament: z.string().nullable().describe("Part of a league/tournament name"),
+        sport: z.string().nullable().describe("Sport name, German or English, e.g. Fußball/Soccer, Tennis, Eishockey"),
+        tournament: z.string().nullable().describe("League/tournament name, German or English, e.g. Bundesliga, 2. Bundesliga, DFB-Pokal, DEL"),
+        country: z.string().nullable().describe("Country of the league in English, e.g. Germany, England"),
+        market: z.string().nullable().describe("Only matches with open odds in this market: 1x2, total (Über/Unter), btts (Beide treffen), double_chance, handicap, ht_1x2"),
         live_only: z.boolean().nullable(),
         with_odds_only: z.boolean().nullable().describe("Only matches with usable open odds"),
         hours_ahead: z.number().nullable().describe("Only matches starting within the next N hours"),
       }),
       execute: async (a) => {
-        let q = uc.from("matches").select("id,home_team,away_team,scheduled,status,match_minute,sport_id,tournament_id,suspended,hotlisted,alerted").order("scheduled").limit(400);
-        if (a.team) q = q.or(`home_team.ilike.%${a.team.replace(/[%,()]/g, "")}%,away_team.ilike.%${a.team.replace(/[%,()]/g, "")}%`);
+        const clean = (s: string) => s.replace(/[%,()]/g, "").trim();
+        let q = uc.from("matches").select("id,home_team,away_team,scheduled,status,match_minute,sport_id,tournament_id,suspended,hotlisted,alerted").in("status", ["not_started", "live", "suspended", "delayed", "interrupted"]).order("scheduled").limit(400);
+        if (a.team) q = q.or(`home_team.ilike.%${clean(a.team)}%,away_team.ilike.%${clean(a.team)}%`);
         if (a.live_only) q = q.eq("status", "live");
         else q = q.gte("scheduled", new Date(Date.now() - 3 * 3600_000).toISOString());
         if (a.hours_ahead) q = q.lte("scheduled", new Date(Date.now() + a.hours_ahead * 3600_000).toISOString());
+        let sportIds: string[] | null = null;
         if (a.sport) {
-          const { data } = await uc.from("sports").select("id").ilike("name", `%${a.sport.replace(/[%,()]/g, "")}%`);
-          const ids = (data ?? []).map((r) => r.id);
-          if (!ids.length) return { total: 0, matches: [] };
-          q = q.in("sport_id", ids);
+          const { data } = await uc.from("sports").select("id,name").ilike("name", `%${clean(sportName(a.sport))}%`);
+          const exact = (data ?? []).filter((r) => r.name.toLowerCase() === sportName(a.sport!).toLowerCase());
+          sportIds = (exact.length ? exact : data ?? []).map((r) => r.id);
+          if (!sportIds.length) return { total: 0, matches: [], hint: `Sportart „${a.sport}" nicht gefunden` };
+          q = q.in("sport_id", sportIds);
         }
         if (a.tournament) {
-          const { data } = await uc.from("tournaments").select("id").ilike("name", `%${a.tournament.replace(/[%,()]/g, "")}%`).limit(150);
-          const ids = (data ?? []).map((r) => r.id);
-          if (!ids.length) return { total: 0, matches: [] };
+          const lg = leagueName(a.tournament);
+          let tq = uc.from("tournaments").select("id,name,category_id").ilike("name", `%${clean(lg.name)}%`).limit(150);
+          if (sportIds) tq = tq.in("sport_id", sportIds);
+          const { data } = await tq;
+          let tours = data ?? [];
+          const country = a.country ?? lg.country;
+          if (country && tours.length > 1) {
+            const { data: cats } = await uc.from("categories").select("id").ilike("name", `%${clean(country)}%`);
+            const cs = new Set((cats ?? []).map((c) => c.id));
+            const inCountry = tours.filter((t) => cs.has(t.category_id));
+            if (inCountry.length) tours = inCountry;
+          }
+          const exact = tours.filter((t) => t.name.toLowerCase() === lg.name.toLowerCase());
+          if (exact.length) tours = exact;
+          const ids = tours.map((r) => r.id);
+          if (!ids.length) return { total: 0, matches: [], hint: `Liga „${a.tournament}" nicht gefunden` };
           q = q.in("tournament_id", ids);
         }
         const { data: rows, error } = await q;
         if (error) return { error: error.message };
         const ids = (rows ?? []).map((r) => r.id);
         const withOdds = new Set<string>();
+        const inMarket = new Set<string>();
+        const mk = a.market ? marketKey(a.market) : null;
         for (let i = 0; i < ids.length; i += 150) {
-          const { data } = await uc.from("match_odds").select("match_id,suspended,outcomes").in("match_id", ids.slice(i, i + 150));
-          for (const o of data ?? []) if (usable(o)) withOdds.add(o.match_id);
+          const { data } = await uc.from("match_odds").select("match_id,market,suspended,outcomes").in("match_id", ids.slice(i, i + 150));
+          for (const o of data ?? []) if (usable(o)) { withOdds.add(o.match_id); if (mk && o.market === mk) inMarket.add(o.match_id); }
         }
         let list = rows ?? [];
         if (a.with_odds_only) list = list.filter((r) => withOdds.has(r.id));
+        if (mk) list = list.filter((r) => inMarket.has(r.id));
         const top = list.slice(0, LIMIT_ROWS);
         const n = await names({ sport: top.map((r) => r.sport_id), tour: top.map((r) => r.tournament_id) });
         return {
@@ -159,10 +181,70 @@ function tools(uc: SupabaseClient) {
   };
 }
 
-const SYSTEM = `You are the feed analysis assistant of a sports odds feed panel. Operators ask about matches and odds.
+const SYSTEM = `You are the feed analysis assistant of a sports odds feed panel. Operators ask about matches and odds, mostly in German.
 Always use the tools to look up data; never invent matches or odds. Answer in the user's language (German or English).
+German vocabulary: Fußball=Soccer, Eishockey=Ice Hockey, Tischtennis=Table Tennis, Handball, Basketball. Leagues: Bundesliga / 2. Bundesliga / 3. Liga / DFB-Pokal (Germany), DEL (ice hockey), BBL (basketball), Champions League.
+Markets: Dreiweg/1X2/Siegwette=1x2, Über/Unter/Tore=total, Beide treffen=btts, Doppelte Chance=double_chance, Handicap=handicap, Halbzeit=ht_1x2.
+Pass sport, tournament, country and market as separate search_matches filters instead of putting them into the team field. A "Bundesliga" without sport means German soccer.
 Summarise clearly and briefly: key numbers first, then a compact markdown table of relevant matches (match, league, start in local time Europe/Berlin, status, odds yes/no).
 For each listed match add a link in the form [Details](/monitoring/match/<id>). If nothing is found, say so and suggest a broader search.`;
+
+const hint = (question: string) => {
+  const r = resolveGerman(question);
+  const parts = [r.sport && `sport=${r.sport}`, r.tournament && `tournament=${r.tournament}`, r.country && `country=${r.country}`, r.market && `market=${r.market}`].filter(Boolean);
+  return parts.length ? `\nDetected in the latest question (use as search_matches filters unless the user says otherwise): ${parts.join(", ")}.` : "";
+};
+
+const norm = (s: unknown) => (typeof s === "string" && s.trim() ? s.trim().toLowerCase() : null);
+
+/** Run the fixed German question set and measure whether the model picks the right sport/league/market filters. */
+async function runEval(uc: SupabaseClient, sb: SupabaseClient, me: string, apiKey: string, req: Request) {
+  const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(req));
+  const provider = createOpenAI({
+    baseURL: "https://ai.gateway.lovable.dev/v1",
+    apiKey,
+    headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
+    fetch: runIdFetch.fetch,
+  });
+  const ts = tools(uc);
+  const one = async (c: (typeof EVAL_SET)[number]) => {
+    const r = resolveGerman(c.q);
+    const resolverOk = r.sport === c.sport && (c.tournament === undefined || r.tournament === c.tournament) && (c.market === undefined || r.market === c.market);
+    try {
+      const result = streamText({
+        model: provider.responses(MODEL),
+        system: SYSTEM + hint(c.q),
+        prompt: c.q,
+        tools: { search_matches: ts.search_matches },
+        toolChoice: { type: "tool", toolName: "search_matches" },
+        stopWhen: stepCountIs(1),
+        abortSignal: req.signal,
+        providerOptions: { openai: { forceReasoning: true, reasoningEffort: "low", reasoningSummary: "auto", store: false, include: ["reasoning.encrypted_content"] } },
+      });
+      const calls = await result.toolCalls;
+      const args = (calls[0]?.input ?? {}) as Record<string, unknown>;
+      const sportOk = norm(args.sport) ? sportName(String(args.sport)).toLowerCase() === norm(c.sport) : c.sport === null;
+      const tourOk = c.tournament === undefined || (norm(args.tournament) != null && leagueName(String(args.tournament)).name.toLowerCase() === norm(c.tournament));
+      const marketOk = c.market === undefined || (norm(args.market) != null && marketKey(String(args.market)) === c.market);
+      return { q: c.q, ok: sportOk && tourOk && marketOk, resolverOk, args };
+    } catch (e) {
+      return { q: c.q, ok: false, resolverOk, error: String((e as Error).message).slice(0, 200) };
+    }
+  };
+  const details: Awaited<ReturnType<typeof one>>[] = [];
+  for (let i = 0; i < EVAL_SET.length; i += 4) details.push(...(await Promise.all(EVAL_SET.slice(i, i + 4).map(one))));
+  const correct = details.filter((d) => d.ok).length;
+  const resolver = details.filter((d) => d.resolverOk).length;
+  const row = {
+    user_id: me, total: details.length, correct,
+    accuracy: Math.round((1000 * correct) / details.length) / 10,
+    resolver_accuracy: Math.round((1000 * resolver) / details.length) / 10,
+    details,
+  };
+  const { error } = await sb.from("ai_eval_runs").insert(row);
+  if (error) console.error("eval persist", error.message);
+  return row;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -182,6 +264,16 @@ Deno.serve(async (req) => {
     if (await overUserLimit(sb, me, "feed-assistant", 10)) return json({ error: "Zu viele Anfragen – bitte kurz warten." }, 429);
 
     const body = await req.json().catch(() => null);
+    if (body?.eval === true) {
+      const [{ data: a }, { data: s }] = await Promise.all([
+        sb.rpc("has_role", { _user_id: me, _role: "admin" }),
+        sb.rpc("has_role", { _user_id: me, _role: "super_admin" }),
+      ]);
+      if (!a && !s) return json({ error: "Forbidden" }, 403);
+      const key = Deno.env.get("LOVABLE_API_KEY");
+      if (!key) return json({ error: "KI nicht konfiguriert" }, 500);
+      return json(await runEval(uc, sb, me, key, req));
+    }
     const incoming = body?.messages as UIMessage[] | undefined;
     const last = incoming?.[incoming.length - 1];
     if (!last || last.role !== "user") return json({ error: "Invalid request" }, 400);
@@ -208,7 +300,7 @@ Deno.serve(async (req) => {
     });
     const result = streamText({
       model: provider.responses(MODEL),
-      system: SYSTEM,
+      system: SYSTEM + hint(text),
       messages: await convertToModelMessages(messages),
       tools: tools(uc),
       stopWhen: stepCountIs(50),

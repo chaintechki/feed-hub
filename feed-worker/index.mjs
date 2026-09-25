@@ -2,6 +2,7 @@
 // and forwards them (HMAC-signed) to the panel backend. Also drives schedule sync
 // and producer recovery. Configuration: /etc/feed-panel/uof.env (see README).
 import crypto from "node:crypto";
+import os from "node:os";
 import amqp from "amqplib";
 
 const env = (k, d) => process.env[k] ?? d;
@@ -168,7 +169,19 @@ async function start() {
   try { await connect(); } catch (e) { log("connect failed", e.message); setTimeout(start, 10_000); }
 }
 
-// ---------- schedule sync ----------
+// ---------- schedule sync + status reconcile ----------
+function memory() {
+  const m = process.memoryUsage();
+  return { rss: m.rss, heap: m.heapUsed, total: os.totalmem(), free: os.freemem() };
+}
+async function statusReconcile() {
+  try {
+    const r = await signedPost("uof-sync", { status: true, mem: memory() });
+    log("status reconcile", JSON.stringify({ checked: r.checked, updated: r.updated, forced: r.forced, changes: r.changes }));
+  } catch (e) {
+    log("status reconcile failed", e.message);
+  }
+}
 async function syncCycle() {
   let startAt = 0, first = true;
   try {
@@ -181,6 +194,8 @@ async function syncCycle() {
   } catch (e) {
     log("sync failed", e.message);
   }
+  // After every schedule/market reload: reconcile match status and record memory + DB size.
+  await statusReconcile();
 }
 syncCycle();
 setInterval(syncCycle, 10 * 60_000);

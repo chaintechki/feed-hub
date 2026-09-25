@@ -162,6 +162,13 @@
       "when": 1790376507095,
       "tag": "0022_ai_chat_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790377395423,
+      "tag": "0023_status_sync_eval_outrights",
+      "breakpoints": true
     }
   ]
 }

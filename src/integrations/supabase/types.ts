@@ -41,6 +41,39 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_eval_runs: {
+        Row: {
+          accuracy: number
+          at: string
+          correct: number
+          details: Json | null
+          id: number
+          resolver_accuracy: number | null
+          total: number
+          user_id: string | null
+        }
+        Insert: {
+          accuracy: number
+          at?: string
+          correct: number
+          details?: Json | null
+          id?: number
+          resolver_accuracy?: number | null
+          total: number
+          user_id?: string | null
+        }
+        Update: {
+          accuracy?: number
+          at?: string
+          correct?: number
+          details?: Json | null
+          id?: number
+          resolver_accuracy?: number | null
+          total?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       alert_log: {
         Row: {
           action: string
@@ -1009,6 +1042,11 @@ export type Database = {
           db_bytes: number
           dead_rows: number | null
           id: number
+          kind: string
+          server_mem_free: number | null
+          server_mem_heap: number | null
+          server_mem_rss: number | null
+          server_mem_total: number | null
           tables: Json
           wal_bytes: number | null
         }
@@ -1019,6 +1057,11 @@ export type Database = {
           db_bytes: number
           dead_rows?: number | null
           id?: number
+          kind?: string
+          server_mem_free?: number | null
+          server_mem_heap?: number | null
+          server_mem_rss?: number | null
+          server_mem_total?: number | null
           tables?: Json
           wal_bytes?: number | null
         }
@@ -1029,6 +1072,11 @@ export type Database = {
           db_bytes?: number
           dead_rows?: number | null
           id?: number
+          kind?: string
+          server_mem_free?: number | null
+          server_mem_heap?: number | null
+          server_mem_rss?: number | null
+          server_mem_total?: number | null
           tables?: Json
           wal_bytes?: number | null
         }
@@ -1039,7 +1087,10 @@ export type Database = {
           competitors: Json
           created_by: string | null
           custom: boolean
+          event_id: string | null
           id: string
+          market_id: number | null
+          market_name: string | null
           name: string
           odds_key: number
           scheduled: string | null
@@ -1052,7 +1103,10 @@ export type Database = {
           competitors?: Json
           created_by?: string | null
           custom?: boolean
+          event_id?: string | null
           id: string
+          market_id?: number | null
+          market_name?: string | null
           name: string
           odds_key?: number
           scheduled?: string | null
@@ -1065,7 +1119,10 @@ export type Database = {
           competitors?: Json
           created_by?: string | null
           custom?: boolean
+          event_id?: string | null
           id?: string
+          market_id?: number | null
+          market_name?: string | null
           name?: string
           odds_key?: number
           scheduled?: string | null
@@ -1191,6 +1248,42 @@ export type Database = {
           name?: string
           sort_order?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      status_sync_runs: {
+        Row: {
+          at: string
+          checked: number
+          details: Json | null
+          duration_ms: number
+          errors: number
+          forced: number
+          id: number
+          ok: boolean
+          updated: number
+        }
+        Insert: {
+          at?: string
+          checked?: number
+          details?: Json | null
+          duration_ms?: number
+          errors?: number
+          forced?: number
+          id?: number
+          ok?: boolean
+          updated?: number
+        }
+        Update: {
+          at?: string
+          checked?: number
+          details?: Json | null
+          duration_ms?: number
+          errors?: number
+          forced?: number
+          id?: number
+          ok?: boolean
+          updated?: number
         }
         Relationships: []
       }
@@ -1603,6 +1696,16 @@ export type Database = {
       }
       market_group_of: { Args: { _name: string }; Returns: string }
       ops_snapshot: { Args: never; Returns: undefined }
+      ops_snapshot_ext: {
+        Args: {
+          _free: number
+          _heap: number
+          _kind: string
+          _rss: number
+          _total: number
+        }
+        Returns: undefined
+      }
       owns_api_client: {
         Args: { _client: string; _user: string }
         Returns: boolean

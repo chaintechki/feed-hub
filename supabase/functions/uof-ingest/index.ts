@@ -3,6 +3,7 @@
 import { db } from "../_shared/feed.ts";
 import type { CatalogEntry } from "../_shared/markets.ts";
 import { eventStatus, fetchFixture, MARKET_MAP, mapMarket, parser, verifySigned } from "../_shared/uof.ts";
+import { isOutrightEvent, writeOutrights } from "../_shared/outrights.ts";
 import { cacheHit, cacheLoad, cacheMiss, flushCacheStats, setCacheSource } from "../_shared/cache-stats.ts";
 
 // Only the market group is needed here; cache it per instance and load just the ids a batch references.
@@ -83,6 +84,8 @@ Deno.serve(async (req) => {
     }));
   }
 
+  const outrightMsgs: { ev: string; mm: any }[] = [];
+  const outrightStops = new Set<string>();
   for (const p of parsed) {
     if (!p) continue;
     const [kind, m] = Object.entries(p).find(([k]) => k !== "?xml") ?? [];
@@ -97,6 +100,11 @@ Deno.serve(async (req) => {
       producers.set(product, cur);
     }
     const ev = mm.event_id as string | undefined;
+    if (isOutrightEvent(ev)) {
+      if (kind === "odds_change") outrightMsgs.push({ ev: ev!, mm });
+      else if (kind === "bet_stop") outrightStops.add(ev!);
+      continue;
+    }
     if (!ev || !known.has(ev)) continue;
     try {
       if (kind === "odds_change") {
@@ -163,8 +171,9 @@ Deno.serve(async (req) => {
   for (const [id, u] of matchUpd) await sb.from("matches").update(u).eq("id", id);
   if (stops.size) await sb.from("match_odds").update({ suspended: true }).eq("suspended", false).in("match_id", [...stops]);
   if (settle.length) await sb.from("settlements").insert(settle);
+  const outrights = await writeOutrights(sb, outrightMsgs, outrightStops, errors).catch((e) => { errors.push({ kind: "outrights", error: String(e) }); return 0; });
   if (producers.size) await sb.from("uof_producers").upsert([...producers.values()].map((p) => ({ ...p, updated_at: new Date().toISOString() })), { onConflict: "id" });
   if (errors.length) await sb.from("uof_messages_log").insert(errors.slice(0, 50).map((e) => ({ kind: e.kind, event_id: e.event_id ?? null, error: e.error.slice(0, 500) })));
 
-  return json({ ok: true, messages: msgs.length, odds: rows.length, skipped_unknown: unknown.size, errors: errors.length });
+  return json({ ok: true, messages: msgs.length, odds: rows.length, outrights, skipped_unknown: unknown.size, errors: errors.length });
 });
