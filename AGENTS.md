@@ -1,0 +1,1 @@
+- Audit-Log ist append-only mit SHA-256-Hash-Kette (Trigger audit_chain/audit_immutable); Sichtbarkeitsfilter liegen in supabase/functions/_shared/visibility.ts — eine testbare Quelle für Edge Functions.
