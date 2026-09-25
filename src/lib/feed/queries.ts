@@ -86,12 +86,12 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
         return q;
       };
       const now = Date.now();
-      const since = (h: number) => new Date(now - h * 3600_000).toISOString();
+      const ago = (h: number) => new Date(now - h * 3600_000).toISOString();
       const [liveRes, upRes] = await Promise.all([
-        scope(supabase.from("matches").select(cols).in("status", ["live", "suspended", "interrupted"]).gte("scheduled", since(12)))
+        scope(supabase.from("matches").select(cols).in("status", ["live", "suspended", "interrupted"]).gte("scheduled", ago(12)))
           .order("scheduled")
           .limit(200),
-        scope(supabase.from("matches").select(cols).gte("scheduled", since(3)).not("status", "in", "(ended,closed,cancelled,abandoned,postponed)"))
+        scope(supabase.from("matches").select(cols).gte("scheduled", ago(3)).not("status", "in", "(ended,closed,cancelled,abandoned,postponed)"))
           .order("scheduled")
           .limit(500),
       ]);
