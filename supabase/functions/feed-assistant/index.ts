@@ -1,7 +1,7 @@
 // Feed analysis assistant: answers operator questions about matches and odds.
 // All tools are read-only and run with the caller's JWT so RLS/visibility apply.
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { createOpenAI } from "npm:@ai-sdk/openai@3";
+import { createOpenAI } from "npm:@ai-sdk/openai@4";
 import { convertToModelMessages, stepCountIs, streamText, tool, type UIMessage } from "npm:ai@7";
 import { z } from "npm:zod@3";
 import { db } from "../_shared/feed.ts";
