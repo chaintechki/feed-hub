@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
           const { error } = await sb.from("api_client_exclusions").insert(ids.map((admin_id) => ({ client_id: b.id, admin_id })));
           if (error) return json({ error: error.message }, 400);
         }
-        await audit("api_client.exclusions", b.id, { admin_ids: ids });
+        await audit("api_client.exclusions", b.id, { admin_ids: ids, before, after: ids });
         return json({ ok: true });
       }
       case "assign": {
