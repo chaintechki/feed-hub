@@ -15,7 +15,7 @@ import { MonitorSubBar } from "@/components/monitoring/MonitorSubBar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
 
-const ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/feed-assistant`;
+const ENDPOINT = `${import.meta.env["VITE_SUPABASE_URL"]}/functions/v1/feed-assistant`;
 
 function ChatWindow({ initial }: { initial: UIMessage[] }) {
   const { t } = useTranslation();
@@ -27,7 +27,7 @@ function ChatWindow({ initial }: { initial: UIMessage[] }) {
         headers: async () => {
           const { data } = await supabase.auth.getSession();
           return {
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            apikey: import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"],
             Authorization: `Bearer ${data.session?.access_token ?? ""}`,
           };
         },
@@ -49,7 +49,10 @@ function ChatWindow({ initial }: { initial: UIMessage[] }) {
 
   async function reset() {
     const { error } = await supabase.from("ai_chat_messages").delete().neq("message_id", "");
-    if (error) return toast.error(t("assistant.failed"));
+    if (error) {
+      toast.error(t("assistant.failed"));
+      return;
+    }
     setMessages([]);
   }
 
@@ -104,7 +107,7 @@ function ChatWindow({ initial }: { initial: UIMessage[] }) {
                     if (part.type === "text")
                       return m.role === "user" ? <span key={i}>{part.text}</span> : <MessageResponse key={i}>{part.text}</MessageResponse>;
                     if (part.type.startsWith("tool-") && "state" in part) {
-                      const tp = part as Parameters<typeof ToolHeader>[0] & { input: unknown; output?: unknown; errorText?: string };
+                      const tp = part as unknown as { type: `tool-${string}`; state: Parameters<typeof ToolHeader>[0]["state"]; input: unknown; output?: unknown; errorText?: string };
                       const name = part.type.slice(5);
                       return (
                         <Tool key={i} defaultOpen={false}>
