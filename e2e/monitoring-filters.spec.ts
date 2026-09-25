@@ -169,6 +169,7 @@ test.describe("monitoring filters with a large feed", () => {
   });
 
   test("active filter chips list filters and remove them individually", async ({ page }) => {
+    const TOTAL_VISIBLE = Number(await page.getByTestId("match-scroll").getAttribute("data-count"));
     await filterButton(page, /^with odds$/i).click();
     await filterButton(page, /^alerted$/i).click();
     await page.getByPlaceholder(/find|suchen/i).fill("Home");
