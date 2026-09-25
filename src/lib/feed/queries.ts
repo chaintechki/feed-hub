@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { HEAT_WINDOW_MS, heatDir, heatKey, type Heat } from "@/lib/feed/heat";
@@ -72,11 +73,29 @@ export function useSportTree() {
   });
 }
 
+export type LoadProgress = { active: boolean; matches: number; chunksDone: number; chunksTotal: number };
+let progress: LoadProgress = { active: false, matches: 0, chunksDone: 0, chunksTotal: 0 };
+const progressListeners = new Set<() => void>();
+function setProgress(next: Partial<LoadProgress>) {
+  progress = { ...progress, ...next };
+  progressListeners.forEach((l) => l());
+}
+/** Live progress of the running match preload (matches fetched, detail chunks done). */
+export function useMatchLoadProgress() {
+  return useSyncExternalStore(
+    (l) => { progressListeners.add(l); return () => progressListeners.delete(l); },
+    () => progress,
+  );
+}
+
 /** Matches plus their own/average odds for the current tree selection. */
 export function useMatches(selection: { sportIds: string[]; categoryIds: string[]; tournamentIds: string[] }) {
   return useQuery({
     queryKey: ["matches", selection],
+    placeholderData: (prev) => prev,
     queryFn: async (): Promise<MatchRow[]> => {
+      setProgress({ active: true, matches: 0, chunksDone: 0, chunksTotal: 0 });
+      try {
       const cols =
         "id,sport_id,category_id,tournament_id,home_team,away_team,scheduled,status,liveodds,match_minute,booked,suspended,hotlisted,alerted,control_mode,comment_count,early_odds,provider_only,margin_skewed";
       const scope = <T extends { in: (c: string, v: string[]) => T }>(q: T): T => {
@@ -99,6 +118,7 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
           if (error) throw error;
           const page = (data ?? []) as DbMatch[];
           found.push(...page);
+          setProgress({ matches: progress.matches + page.length });
           if (page.length < PAGE_SIZE) break;
         }
         return found;
@@ -109,10 +129,13 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
 
       const ids = rows.map((r) => r.id);
       const idChunks = Array.from({ length: Math.ceil(ids.length / 75) }, (_, index) => ids.slice(index * 75, index * 75 + 75));
+      setProgress({ chunksTotal: idChunks.length * 4 });
       const queryChunks = async <T>(run: (chunk: string[]) => PromiseLike<T>) => {
         const results: T[] = [];
         for (let index = 0; index < idChunks.length; index += 8) {
-          results.push(...await Promise.all(idChunks.slice(index, index + 8).map(run)));
+          const part = idChunks.slice(index, index + 8);
+          results.push(...await Promise.all(part.map(run)));
+          setProgress({ chunksDone: progress.chunksDone + part.length });
         }
         return results;
       };
@@ -169,6 +192,12 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
       const sorted = [...visible].sort(
         (a, b) => rank(a) - rank(b) || a.scheduled.localeCompare(b.scheduled),
       );
+      const oddsBy = new Map<string, OddsRow[]>();
+      for (const o of odds) {
+        const list = oddsBy.get(o.match_id);
+        const row = toOddsRow(o);
+        if (list) list.push(row); else oddsBy.set(o.match_id, [row]);
+      }
       return sorted.map((m) => ({
         id: m.id,
         sportId: m.sport_id,
@@ -195,8 +224,11 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
         alertScore: Math.round(score.get(m.id) ?? 0),
         logCount: logCount.get(m.id) ?? 0,
         heat: heat[m.id] ?? {},
-        odds: (odds ?? []).filter((o) => o.match_id === m.id).map(toOddsRow),
+        odds: oddsBy.get(m.id) ?? [],
       }));
+      } finally {
+        setProgress({ active: false });
+      }
     },
   });
 }

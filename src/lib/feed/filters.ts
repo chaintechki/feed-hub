@@ -11,6 +11,28 @@ export function hasUsableOdds(match: MatchRow, source?: "own" | "average") {
   );
 }
 
+const searchKeys = new WeakMap<MatchRow, string>();
+
+/** Lower-cased search text per match, computed once per row object. */
+export function matchSearchKey(match: MatchRow) {
+  let key = searchKeys.get(match);
+  if (key === undefined) {
+    key = `${match.homeTeam} ${match.awayTeam} ${match.tournamentName} ${match.categoryName} ${match.sportName} ${match.id}`.toLowerCase();
+    searchKeys.set(match, key);
+  }
+  return key;
+}
+
+export type TreeScope = { sportIds: string[]; categoryIds: string[]; tournamentIds: string[] };
+
+/** Same precedence as the server scope: tournaments, then categories, then sports. */
+export function matchesTreeScope(match: MatchRow, scope: TreeScope) {
+  if (scope.tournamentIds.length) return scope.tournamentIds.includes(match.tournamentId);
+  if (scope.categoryIds.length) return scope.categoryIds.includes(match.categoryId);
+  if (scope.sportIds.length) return scope.sportIds.includes(match.sportId);
+  return true;
+}
+
 export function matchesMonitorFilters(
   match: MatchRow,
   filters: MonitorFilters,
@@ -34,7 +56,7 @@ export function matchesMonitorFilters(
   if (filters.earlyOddsAvailable && !match.earlyOdds) return false;
 
   const query = term.trim().toLowerCase();
-  if (query && !`${match.homeTeam} ${match.awayTeam} ${match.tournamentName}`.toLowerCase().includes(query)) {
+  if (query && !matchSearchKey(match).includes(query)) {
     return false;
   }
   return true;
