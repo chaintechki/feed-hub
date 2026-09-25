@@ -1,4 +1,5 @@
 import { MARKET_GROUPS } from "@/lib/feed/marketCatalog";
+import { useAuth } from "@/providers/AuthProvider";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, KeyRound, Pencil, Plus, Power, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -84,8 +85,10 @@ export function ApiClients({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean 
   const [newKey, setNewKey] = useState<{ key: string; kind: string; oldExpires?: string } | null>(null);
   const [keyForm, setKeyForm] = useState<KeyForm | null>(null);
 
+  const { user } = useAuth();
   const list = useQuery({
-    queryKey: ["api_clients"],
+    queryKey: ["api_clients", user?.id ?? null],
+    enabled: !!user,
     queryFn: () => call<{ clients: ApiClient[]; is_admin: boolean; is_super: boolean }>({ action: "list" }).then((r) => {
       setIsAdmin(r.is_admin);
       setIsSuper(r.is_super);
@@ -95,7 +98,7 @@ export function ApiClients({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean 
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuper, setIsSuper] = useState(false);
   const users = useQuery({
-    queryKey: ["api_client_users"],
+    queryKey: ["api_client_users", user?.id ?? null],
     enabled: isAdmin,
     queryFn: () => call<{ users: { id: string; username: string | null; role: string }[] }>({ action: "users" }).then((r) => r.users),
   });
@@ -122,7 +125,7 @@ export function ApiClients({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean 
   const toggle = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
   const stats = useQuery({
-    queryKey: ["api_usage_stats"],
+    queryKey: ["api_usage_stats", user?.id ?? null],
     queryFn: async () => {
       const monthStart = new Date(Date.now() - 30 * 864e5).toISOString();
       const dayStart = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
