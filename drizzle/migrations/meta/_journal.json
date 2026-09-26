@@ -190,6 +190,13 @@
       "when": 1790429939680,
       "tag": "0026_stability_feed_rpcs",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790446678520,
+      "tag": "0027_feed_connections",
+      "breakpoints": true
     }
   ]
 }
