@@ -13,5 +13,6 @@
 
 ## Zweite Feed-Anbindung (Gateway, 1.0.15)
 - [x] Platzhalter-Zugangsdaten GW_* gesetzt
-- [ ] Gateway-Ersteinrichtung (Admin anlegen) – wartet auf Freigabe
+- [x] Gateway-Ersteinrichtung: Admin chaintech angelegt, Zugang gesichert
+- [ ] Feed-Client-ID vom Anbieter (Admin-API kann Feed-Clients nicht auflisten) – wartet auf oddz.club
 - [ ] Umschaltbare Anbindung (Tabelle, Funktion, Oberfläche, Worker)
