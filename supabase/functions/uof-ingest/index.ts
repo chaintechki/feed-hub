@@ -167,11 +167,17 @@ Deno.serve(async (req) => {
       if (error) errors.push({ kind: "suspend", error: error.message });
     }
   }
-  for (const [id, u] of matchUpd) await sb.from("matches").update(u).eq("id", id);
+  // Match status + producer heartbeats go out in one batched call instead of many single updates.
+  if (matchUpd.size || producers.size) {
+    const { error } = await sb.rpc("ingest_batch", {
+      _matches: [...matchUpd].map(([id, u]) => ({ id, ...u })),
+      _producers: [...producers.values()],
+    });
+    if (error) errors.push({ kind: "batch", error: error.message });
+  }
   if (stops.size) await sb.from("match_odds").update({ suspended: true }).eq("suspended", false).in("match_id", [...stops]);
-  if (settle.length) await sb.from("settlements").insert(settle);
+  if (settle.length) await sb.from("settlements").upsert(settle, { onConflict: "match_id,market,specifier,outcome,state", ignoreDuplicates: true });
   const outrights = await writeOutrights(sb, outrightMsgs, outrightStops, errors).catch((e) => { errors.push({ kind: "outrights", error: String(e) }); return 0; });
-  if (producers.size) await sb.from("uof_producers").upsert([...producers.values()].map((p) => ({ ...p, updated_at: new Date().toISOString() })), { onConflict: "id" });
   if (errors.length) await sb.from("uof_messages_log").insert(errors.slice(0, 50).map((e) => ({ kind: e.kind, event_id: e.event_id ?? null, error: e.error.slice(0, 500) })));
 
   return json({ ok: true, messages: msgs.length, odds: rows.length, outrights, skipped_unknown: unknown.size, errors: errors.length });
