@@ -19,6 +19,15 @@
 6. **Überwachung im Betriebs-Dashboard:** Ampel für "letzte Live-Quote vor x s", Datenbank-Antwortzeit und Plattenbelegung; Warnung ab 80 % Platte bzw. wenn 2 Min keine Quote kam.
 7. Vorher/Nachher messen, Version 1.0.14.
 
+## Was kaputtgehen kann – und wie es abgesichert wird
+- **Abrechnungen:** Der Duplikatschutz existiert bereits in der Datenbank. Risiko: Löschen nach 7 Tagen entfernt alte Abrechnungen aus der Ansicht "Abrechnungen". Absicherung: nur Einträge von beendeten Spielen löschen; Dauer einstellbar.
+- **Sperr-Updates:** Fällt die neue Serverfunktion aus, würden Märkte nicht gesperrt (Kunden sähen alte Quoten). Absicherung: bei Fehler automatischer Rückfall auf den bisherigen Weg + Fehlerprotokoll.
+- **Puffer im Feed-Dienst:** Bei langem Datenbankausfall wächst der Speicher. Absicherung: pro Quote nur letzter Stand, Obergrenze 20.000 Einträge; Abrechnungen und Sperren werden nie verworfen.
+- **Zeitlimit 15 s:** Sehr große Abfragen (KI-Analyse, Monitoring-Vollladen) könnten abbrechen. Absicherung: vorher die längsten echten Abfragen messen; Feed-Dienst und Kunden-API laufen unter eigener Rolle und sind nicht betroffen.
+- **Aufräumen:** Großes Löschen erzeugt selbst Last. Absicherung: kleine Blöcke (max. 5.000 Zeilen pro Durchlauf).
+- **Deploy:** Der Feed-Dienst startet neu, ca. 10–20 s keine Quoten; danach holt er fehlende Daten automatisch nach.
+- **Tests vor Abschluss:** automatische Tests für Puffer/Schutzschalter, Live-Check (Quoten in den letzten 60 s, beide Kanäle alive), Kunden-API-Aufruf, Login.
+
 ## Technische Details
 - Migration 0026: `ingest_settlements(jsonb)`, `set_odds_suspended(jsonb)` (Security Definer, nur service_role); `db_cleanup_core` um Aufbewahrungsregeln erweitern; `statement_timeout` für Rolle `authenticated` 15 s.
 - `uof-ingest`: settlements/suspend über neue RPCs.
