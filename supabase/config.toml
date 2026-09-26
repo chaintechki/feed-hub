@@ -13,3 +13,6 @@ verify_jwt = false
 
 [functions.feed-assistant]
 verify_jwt = false
+
+[functions.ai-billing]
+verify_jwt = false
