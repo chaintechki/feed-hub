@@ -10,3 +10,8 @@
 - [x] Vorher/Nachher messen
 - [x] Stabilität 1.0.14: Abrechnungen/Sperren gebündelt (RPCs), Aufbewahrung in 5.000er-Blöcken, Worker-Schutzschalter + Puffer ohne Verlust kritischer Meldungen, Feed-Zustand im Betriebs-Dashboard
 - [ ] Server: `sudo ./deploy.sh` (neuer Feed-Dienst) – wartet auf Betreiber
+
+## Zweite Feed-Anbindung (Gateway, 1.0.15)
+- [x] Platzhalter-Zugangsdaten GW_* gesetzt
+- [ ] Gateway-Ersteinrichtung (Admin anlegen) – wartet auf Freigabe
+- [ ] Umschaltbare Anbindung (Tabelle, Funktion, Oberfläche, Worker)
