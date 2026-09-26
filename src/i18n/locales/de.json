@@ -271,7 +271,8 @@
       "feedOptions": "Feed-Optionen",
       "outrights": "Outrights",
       "operations": "Betrieb",
-      "payments": "Zahlungen"
+      "payments": "Zahlungen",
+      "feedConnections": "Feed-Anbindungen"
     },
     "activation": "Aktivierung",
     "activationHelp": "Off = aus, Mon = nur Monitoring, Ctrl = volle Steuerung",
@@ -600,6 +601,52 @@
       "orders": "Zahlungen",
       "date": "Datum",
       "queries": "Abfragen"
+    }
+  },
+  "fc": {
+    "title": "Feed-Anbindungen",
+    "desc": "Genau eine Anbindung ist aktiv. Umschalten nur durch den Super Admin.",
+    "name": {
+      "uof": "Unified Feed (Konto 4002)",
+      "gateway": "OddsFeed Gateway"
+    },
+    "active": "Aktiv",
+    "inactive": "Inaktiv",
+    "verified": "Probelauf bestanden",
+    "yes": "Ja",
+    "no": "Nein",
+    "reachable": "Erreichbar",
+    "lastCheck": "Letzte Prüfung",
+    "placeholderHint": "Zugangsdaten sind noch Platzhalter. Sobald der Anbieter die Feed-Client-ID, Benutzername und Passwort liefert, werden sie eingetragen.",
+    "testMessage": "Testnachricht senden",
+    "rotate": "Warteschlangen-Passwort erneuern",
+    "queue": "Warteschlange",
+    "f": {
+      "mq_host": "Host",
+      "mq_port": "Port",
+      "mq_vhost": "Virtual Host",
+      "mq_user": "Benutzer",
+      "mq_exchange": "Exchange"
+    },
+    "activate": "Aktivieren",
+    "lockedHint": "Aktivieren ist gesperrt, bis eine Testnachricht erfolgreich war.",
+    "confirmTitle": "Anbindung umschalten?",
+    "confirmText": "{{name}} wird aktiviert, die andere Anbindung deaktiviert. Der Feed-Dienst schaltet innerhalb einer Minute um; für einige Sekunden kommen keine Quoten, danach werden fehlende Daten nachgeholt.",
+    "done": "Erledigt",
+    "status": {
+      "ok": "In Betrieb",
+      "not_configured": "Nicht eingerichtet",
+      "credentials_placeholder": "Platzhalter-Zugangsdaten",
+      "unreachable": "Nicht erreichbar",
+      "login_failed": "Anmeldung fehlgeschlagen",
+      "reachable": "Erreichbar",
+      "test_ok": "Testnachricht erfolgreich"
+    },
+    "err": {
+      "credentials_placeholder": "Zugangsdaten sind noch Platzhalter.",
+      "not_verified": "Erst Testnachricht erfolgreich senden.",
+      "forbidden": "Nur der Super Admin darf das.",
+      "rate_limited": "Zu viele Anfragen."
     }
   }
 }

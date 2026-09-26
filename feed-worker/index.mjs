@@ -172,27 +172,53 @@ function onMessage(xml) {
 }
 
 // ---------- AMQP ----------
+// Active connection is decided in the panel (super admin); polled every minute via uof-sync.
+const UOF_MQ = { host: C.mqHost, port: C.mqPort, vhost: C.vhost, user: C.user, pass: C.pass, exchange: "unifiedfeed" };
+let activeId = "uof";
+let mq = UOF_MQ;
+let conn = null;
+let switching = false;
 async function connect() {
-  const conn = await amqp.connect({
-    protocol: "amqps",
-    hostname: C.mqHost,
-    port: C.mqPort,
-    vhost: C.vhost,
-    username: C.user,
-    password: C.pass,
-    heartbeat: 30,
-  }, { servername: C.mqHost });
-  conn.on("error", (e) => log("amqp error", e.message));
-  conn.on("close", () => { log("amqp closed, reconnecting in 5 s"); for (const p of Object.values(producers)) p.down = true; setTimeout(start, 5000); });
-  const ch = await conn.createChannel();
+  const cfg = mq;
+  const c = await amqp.connect({
+    protocol: "amqps", hostname: cfg.host, port: cfg.port, vhost: cfg.vhost, username: cfg.user, password: cfg.pass, heartbeat: 30,
+  }, { servername: cfg.host });
+  conn = c;
+  c.on("error", (e) => log("amqp error", e.message));
+  c.on("close", () => {
+    for (const p of Object.values(producers)) p.down = true;
+    if (conn !== c || switching) return; // intentional close during switch
+    log("amqp closed, reconnecting in 5 s"); conn = null; setTimeout(start, 5000);
+  });
+  const ch = await c.createChannel();
   const q = await ch.assertQueue("", { exclusive: true, autoDelete: true });
-  await ch.bindQueue(q.queue, "unifiedfeed", "#");
+  await ch.bindQueue(q.queue, cfg.exchange || "unifiedfeed", "#");
   await ch.consume(q.queue, (m) => { if (m) onMessage(m.content.toString("utf8")); }, { noAck: true });
-  log("amqp connected", C.mqHost, C.vhost);
+  log("amqp connected", activeId, cfg.host, cfg.vhost);
 }
 async function start() {
   try { await connect(); } catch (e) { log("connect failed", e.message); setTimeout(start, 10_000); }
 }
+async function pollConnection() {
+  try {
+    const r = await signedPost("uof-sync", { connection: true });
+    const next = r.active === "gateway" && r.mq ? "gateway" : "uof";
+    const nextMq = next === "gateway" ? r.mq : UOF_MQ;
+    if (next === activeId && JSON.stringify(nextMq) === JSON.stringify(mq)) return;
+    log(`switching feed connection ${activeId} -> ${next}`);
+    switching = true;
+    const old = conn; conn = null;
+    await old?.close().catch(() => {});
+    activeId = next; mq = nextMq;
+    switching = false;
+    await start();
+    for (const id of Object.keys(PRODUCT_URL)) recover(Number(id), true);
+  } catch (e) {
+    switching = false;
+    log("connection poll failed", e.message);
+  }
+}
+setInterval(pollConnection, 60_000);
 
 // ---------- schedule sync + status reconcile ----------
 function memory() {
@@ -225,5 +251,5 @@ async function syncCycle() {
 syncCycle();
 setInterval(syncCycle, 10 * 60_000);
 
-start();
+pollConnection().finally(() => { if (!conn) start(); });
 process.on("SIGTERM", async () => { await flush(); process.exit(0); });

@@ -698,6 +698,65 @@ export type Database = {
         }
         Relationships: []
       }
+      feed_connection_secrets: {
+        Row: {
+          id: string
+          mq_password: string | null
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          mq_password?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          mq_password?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_connection_secrets_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "feed_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_connections: {
+        Row: {
+          active: boolean
+          id: string
+          info: Json
+          last_check: string | null
+          status: string | null
+          updated_at: string
+          updated_by: string | null
+          verified: boolean
+        }
+        Insert: {
+          active?: boolean
+          id: string
+          info?: Json
+          last_check?: string | null
+          status?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verified?: boolean
+        }
+        Update: {
+          active?: boolean
+          id?: string
+          info?: Json
+          last_check?: string | null
+          status?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verified?: boolean
+        }
+        Relationships: []
+      }
       feed_options: {
         Row: {
           options: Json
@@ -1832,6 +1891,7 @@ export type Database = {
       }
       db_cleanup: { Args: never; Returns: Json }
       db_cleanup_core: { Args: never; Returns: Json }
+      feed_connection_activate: { Args: { _id: string }; Returns: Json }
       feed_health: { Args: never; Returns: Json }
       has_role: {
         Args: {
