@@ -183,6 +183,13 @@
       "when": 1790428104081,
       "tag": "0025_settlements_dedupe_ingest_batch",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790429939680,
+      "tag": "0026_stability_feed_rpcs",
+      "breakpoints": true
     }
   ]
 }
