@@ -1,7 +1,9 @@
-# Roadmap: CTRL-Lücken
+# Roadmap
 
-- [x] Paket 1: Monitoring-Ausbau (Match-Up, Farbverlauf, Alert-Score, Kommentare/Protokoll, Menü, Margen-Hinweis)
-- [x] Paket 2: Tournaments, Templates, Ladders
-- [x] Paket 3: Buchmacherlisten & Vergleich
-- [x] Paket 4: Feed-Optionen & Outrights
-- [ ] Sportradar-Anbindung (wartet auf Zugangsschlüssel)
+## Plattform träge (1.0.13)
+- [x] Datenbank neu gestartet
+- [x] Feed schreibt nur noch eine Quotenquelle (live)
+- [x] Monitoring lädt nur eine Quelle, Aktualisierung 60 s
+- [x] Worker: Takt 10 s + automatisches Bremsen (wirksam nach deploy.sh)
+- [ ] Alte „average"-Quoten löschen, Abrechnungs-Duplikate verhindern, Schreibvorgänge bündeln — wartet, bis die Datenbank wieder antwortet
+- [ ] Vorher/Nachher messen

@@ -93,6 +93,10 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
   return useQuery({
     queryKey: ["matches", selection],
     placeholderData: (prev) => prev,
+    // Full reload is heavy (10k matches + odds); refresh once a minute and only while the tab is visible.
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
     queryFn: async (): Promise<MatchRow[]> => {
       setProgress({ active: true, matches: 0, chunksDone: 0, chunksTotal: 0 });
       try {
@@ -144,6 +148,7 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
         queryChunks((chunk) => supabase
           .from("match_odds")
           .select("match_id,source,market,specifier,outcomes,margin,suspended,control_mode,market_group,alerted,updated_at")
+          .eq("source", "own")
           .in("match_id", chunk)),
         supabase.from("tournaments").select("id,name"),
         supabase.from("categories").select("id,name"),
@@ -194,9 +199,11 @@ export function useMatches(selection: { sportIds: string[]; categoryIds: string[
       );
       const oddsBy = new Map<string, OddsRow[]>();
       for (const o of odds) {
-        const list = oddsBy.get(o.match_id);
         const row = toOddsRow(o);
-        if (list) list.push(row); else oddsBy.set(o.match_id, [row]);
+        if (row.source !== "own") continue;
+        const avg = { ...row, source: "average" as OddsRow["source"] };
+        const list = oddsBy.get(o.match_id);
+        if (list) list.push(row, avg); else oddsBy.set(o.match_id, [row, avg]);
       }
       return sorted.map((m) => ({
         id: m.id,
@@ -317,6 +324,16 @@ export const toOddsRow = (o: DbOdds): OddsRow => ({
   updatedAt: o.updated_at,
 });
 
+/** Only "own" rows are stored; the provider average is identical, so derive it locally. */
+export function withAverage(rows: OddsRow[]): OddsRow[] {
+  const out: OddsRow[] = [];
+  for (const r of rows) {
+    if (r.source !== "own") continue;
+    out.push(r, { ...r, source: "average" as OddsRow["source"] });
+  }
+  return out;
+}
+
 type DbHist = { match_id: string; market: string; specifier: string | null; outcome: string; odds: number; prev_odds: number | null; changed_at: string };
 /** Latest change per outcome, grouped by match. */
 export function buildHeat(hist: DbHist[]) {
@@ -339,12 +356,12 @@ export function useMatchUp(id: string | undefined) {
       const since = new Date(Date.now() - HEAT_WINDOW_MS).toISOString();
       const [m, o, h] = await Promise.all([
         supabase.from("matches").select("*, tournaments(name), categories(name), sports(name)").eq("id", id!).maybeSingle(),
-        supabase.from("match_odds").select("match_id,source,market,specifier,outcomes,margin,suspended,control_mode,market_group,alerted,updated_at").eq("match_id", id!).order("market"),
+        supabase.from("match_odds").select("match_id,source,market,specifier,outcomes,margin,suspended,control_mode,market_group,alerted,updated_at").eq("match_id", id!).eq("source", "own").order("market"),
         supabase.from("odds_history").select("match_id,market,specifier,outcome,odds,prev_odds,changed_at").eq("match_id", id!).gte("changed_at", since).order("changed_at"),
       ]);
       if (m.error) throw m.error;
       if (o.error) throw o.error;
-      return { match: m.data, odds: (o.data ?? []).map(toOddsRow), heat: buildHeat(h.data ?? [])[id!] ?? {} };
+      return { match: m.data, odds: withAverage((o.data ?? []).map(toOddsRow)), heat: buildHeat(h.data ?? [])[id!] ?? {} };
     },
   });
 }

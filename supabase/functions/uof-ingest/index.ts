@@ -120,12 +120,11 @@ Deno.serve(async (req) => {
           const outs = (mk.outcome ?? []).filter((o: any) => o.odds !== undefined);
           const outcomes = outs.map((o: any) => ({ label: map.label(String(o.id)), odds: o.active === "0" ? null : Number(o.odds) }));
           const suspended = String(mk.status) !== "1";
-          for (const source of ["own", "average"]) {
-            oddsRows.set(`${ev}|${source}|${map.market}|${map.specifier ?? ""}`, {
-              match_id: ev, source, market: map.market, specifier: map.specifier, market_group: map.group,
-              suspended, updated_at: new Date().toISOString(), ...(outcomes.length ? { outcomes } : {}),
-            });
-          }
+          // Only "own" is stored; the average is identical and derived when reading.
+          oddsRows.set(`${ev}|own|${map.market}|${map.specifier ?? ""}`, {
+            match_id: ev, source: "own", market: map.market, specifier: map.specifier, market_group: map.group,
+            suspended, updated_at: new Date().toISOString(), ...(outcomes.length ? { outcomes } : {}),
+          });
         }
       } else if (kind === "bet_stop") {
         stops.add(ev);
