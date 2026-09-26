@@ -16,3 +16,6 @@ verify_jwt = false
 
 [functions.ai-billing]
 verify_jwt = false
+
+[functions.gateway-admin]
+verify_jwt = false
