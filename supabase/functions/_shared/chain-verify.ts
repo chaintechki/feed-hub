@@ -60,7 +60,7 @@ export function receivedUnits(network: Network, logs: Log[], to: string): bigint
   for (const l of logs) {
     if (addr20(l.address) !== c) continue;
     if (strip(l.topics[0] ?? "") !== TRANSFER_TOPIC || l.topics.length < 3) continue;
-    if (addr20(l.topics[2]) !== dest) continue;
+    if (addr20(l.topics[2] ?? "") !== dest) continue;
     const d = strip(l.data);
     if (d) sum += BigInt("0x" + d);
   }
