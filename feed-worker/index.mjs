@@ -55,6 +55,9 @@ function takeBatch() {
   }
   return batch;
 }
+// Adaptive pacing: flush every 10 s; if the backend answers slowly, wait longer so writes never pile up.
+const BASE_DELAY = 10_000;
+let delay = BASE_DELAY;
 async function flush() {
   if (flushing || !buf.length) return;
   flushing = true;
@@ -62,12 +65,17 @@ async function flush() {
     for (let round = 0; round < 20 && buf.length; round++) {
       const batch = takeBatch();
       if (!batch.length) break;
+      const t0 = Date.now();
       try {
         await signedPost("uof-ingest", { messages: batch });
         if (maxBytes < 1_500_000) maxBytes = Math.min(1_500_000, maxBytes * 2);
+        const took = Date.now() - t0;
+        delay = took > 3000 ? Math.min(60_000, delay * 2) : Math.max(BASE_DELAY, Math.floor(delay / 2));
+        if (took > 3000) { log(`ingest slow (${took} ms), next flush in ${delay / 1000}s`); break; }
       } catch (e) {
         buf.unshift(...batch);
         if (/ 413 /.test(e.message) && maxBytes > 50_000) { maxBytes = Math.floor(maxBytes / 2); continue; }
+        delay = Math.min(60_000, delay * 2);
         log("ingest failed, requeue", e.message);
         break;
       }
@@ -77,7 +85,9 @@ async function flush() {
     flushing = false;
   }
 }
-setInterval(flush, 1000);
+(function loop() {
+  setTimeout(async () => { await flush().catch(() => {}); loop(); }, delay);
+})();
 
 // ---------- producers / recovery ----------
 const producers = {}; // id -> { lastAlive, lastOk, down }
