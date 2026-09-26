@@ -13,16 +13,18 @@ const TABS = [
   { to: "/configuration/feed-options", key: "feedOptions" },
   { to: "/configuration/outrights", key: "outrights" },
   { to: "/configuration/operations", key: "operations", admin: true },
+  { to: "/configuration/payments", key: "payments", superOnly: true },
 ] as const;
 
 export function ConfigLayout() {
   const { t } = useTranslation();
   const { roles } = useAuth();
-  const isAdmin = roles.includes("super_admin") || roles.includes("admin");
+  const isSuper = roles.includes("super_admin");
+  const isAdmin = isSuper || roles.includes("admin");
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex h-9 shrink-0 items-stretch border-b border-border bg-subbar">
-        {TABS.filter((tab) => !("admin" in tab) || isAdmin).map((tab) => (
+        {TABS.filter((tab) => ("superOnly" in tab ? isSuper : !("admin" in tab) || isAdmin)).map((tab) => (
           <NavLink
             key={tab.to}
             to={tab.to}

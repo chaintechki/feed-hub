@@ -269,7 +269,8 @@
       "bookmakers": "Buchmacher",
       "feedOptions": "Feed-Optionen",
       "outrights": "Outrights",
-      "operations": "Betrieb"
+      "operations": "Betrieb",
+      "payments": "Zahlungen"
     },
     "activation": "Aktivierung",
     "activationHelp": "Off = aus, Mon = nur Monitoring, Ctrl = volle Steuerung",
@@ -526,5 +527,71 @@
   "preload": {
     "loading": "Lade Spiele {{matches}} · Quoten {{pct}} %",
     "shown": "{{count}} von {{total}} Spielen"
+  },
+  "billing": {
+    "buy": "Abfragen kaufen",
+    "buyTitle": "KI-Abfragen kaufen",
+    "unlimited": "Unbegrenzt",
+    "freeLeft": "{{n}}/{{total}} frei",
+    "purchasedN": "{{n}} gekauft",
+    "exhausted": "Ihr KI-Kontingent ist aufgebraucht. Bitte weitere Abfragen kaufen.",
+    "noNetworks": "Derzeit ist keine Zahlungsart hinterlegt. Bitte wenden Sie sich an den Administrator.",
+    "packInfo": "{{size}} Abfragen für {{price}} USDT. Gekaufte Abfragen verfallen nicht.",
+    "network": "Netzwerk",
+    "packs": "Paket",
+    "createOrder": "Zahlung starten",
+    "validFor": "gültig",
+    "address": "Einzahladresse",
+    "exactAmount": "Genauer Betrag (USDT)",
+    "exactHint": "Senden Sie genau diesen Betrag inkl. aller Nachkommastellen als USDT über {{network}}. Andere Netzwerke oder Token gehen verloren.",
+    "txId": "Transaktions-ID",
+    "verify": "Zahlung prüfen",
+    "confirming": "Zahlung gefunden – warte auf Bestätigungen ({{n}}). Die Gutschrift erfolgt automatisch, Sie können das Fenster schließen.",
+    "credited": "{{n}} Abfragen gutgeschrieben",
+    "newOrder": "Neue Bestellung",
+    "history": "Meine Käufe",
+    "status": {
+      "pending": "Offen",
+      "confirming": "Bestätigung",
+      "paid": "Bezahlt",
+      "expired": "Abgelaufen",
+      "rejected": "Abgelehnt"
+    },
+    "reason": {
+      "expired": "Die Bestellung ist abgelaufen.",
+      "tx_failed": "Die Transaktion ist fehlgeschlagen.",
+      "no_usdt_to_address": "In dieser Transaktion wurde kein USDT an die Einzahladresse gesendet.",
+      "amount_too_low": "Der gesendete Betrag ist zu niedrig.",
+      "amount_mismatch": "Der Betrag passt nicht zur Bestellung (Nachkommastellen).",
+      "tx_before_order": "Die Transaktion ist älter als die Bestellung.",
+      "tx_after_expiry": "Die Zahlung ging nach Ablauf der Bestellung ein.",
+      "tx_not_found": "Die Transaktion wurde nicht gefunden."
+    },
+    "admin": {
+      "title": "Zahlungen",
+      "desc": "Einzahladressen, Preise und KI-Guthaben",
+      "addresses": "USDT-Einzahladressen",
+      "active": "Aktiv",
+      "save": "Speichern",
+      "saved": "Gespeichert",
+      "invalidAddress": "Ungültige Adresse für dieses Netzwerk",
+      "addrHint": "Leeres Feld speichern entfernt das Netzwerk. Nur aktive Netzwerke werden Benutzern angeboten.",
+      "settings": "Preise & Regeln",
+      "free": "Gratis/Monat",
+      "packSize": "Paketgröße",
+      "packPrice": "Paketpreis USDT",
+      "ttl": "Gültigkeit (Min.)",
+      "conf": "Bestätigungen",
+      "credits": "KI-Guthaben",
+      "pickUser": "Benutzer wählen",
+      "reason": "Begründung",
+      "apply": "Gutschreiben/Abziehen",
+      "user": "Benutzer",
+      "freeUsed": "Gratis genutzt",
+      "purchased": "Gekauft",
+      "orders": "Zahlungen",
+      "date": "Datum",
+      "queries": "Abfragen"
+    }
   }
 }

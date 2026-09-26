@@ -269,7 +269,8 @@
       "bookmakers": "Bookmakers",
       "feedOptions": "Feed options",
       "outrights": "Outrights",
-      "operations": "Operations"
+      "operations": "Operations",
+      "payments": "Payments"
     },
     "activation": "Activation",
     "activationHelp": "Off = disabled, Mon = monitoring only, Ctrl = full control",
@@ -526,5 +527,71 @@
   "preload": {
     "loading": "Loading matches {{matches}} · odds {{pct}}%",
     "shown": "{{count}} of {{total}} matches"
+  },
+  "billing": {
+    "buy": "Buy queries",
+    "buyTitle": "Buy AI queries",
+    "unlimited": "Unlimited",
+    "freeLeft": "{{n}}/{{total}} free",
+    "purchasedN": "{{n}} purchased",
+    "exhausted": "Your AI quota is used up. Please buy more queries.",
+    "noNetworks": "No payment method is configured yet. Please contact the administrator.",
+    "packInfo": "{{size}} queries for {{price}} USDT. Purchased queries never expire.",
+    "network": "Network",
+    "packs": "Package",
+    "createOrder": "Start payment",
+    "validFor": "valid",
+    "address": "Deposit address",
+    "exactAmount": "Exact amount (USDT)",
+    "exactHint": "Send exactly this amount including all decimals as USDT via {{network}}. Other networks or tokens will be lost.",
+    "txId": "Transaction ID",
+    "verify": "Verify payment",
+    "confirming": "Payment found – waiting for confirmations ({{n}}). Credits are added automatically; you may close this window.",
+    "credited": "{{n}} queries credited",
+    "newOrder": "New order",
+    "history": "My purchases",
+    "status": {
+      "pending": "Open",
+      "confirming": "Confirming",
+      "paid": "Paid",
+      "expired": "Expired",
+      "rejected": "Rejected"
+    },
+    "reason": {
+      "expired": "The order has expired.",
+      "tx_failed": "The transaction failed.",
+      "no_usdt_to_address": "This transaction sent no USDT to the deposit address.",
+      "amount_too_low": "The amount sent is too low.",
+      "amount_mismatch": "The amount does not match the order (decimals).",
+      "tx_before_order": "The transaction is older than the order.",
+      "tx_after_expiry": "The payment arrived after the order expired.",
+      "tx_not_found": "Transaction not found."
+    },
+    "admin": {
+      "title": "Payments",
+      "desc": "Deposit addresses, prices and AI credits",
+      "addresses": "USDT deposit addresses",
+      "active": "Active",
+      "save": "Save",
+      "saved": "Saved",
+      "invalidAddress": "Invalid address for this network",
+      "addrHint": "Saving an empty field removes the network. Only active networks are offered to users.",
+      "settings": "Prices & rules",
+      "free": "Free/month",
+      "packSize": "Package size",
+      "packPrice": "Package price USDT",
+      "ttl": "Validity (min)",
+      "conf": "Confirmations",
+      "credits": "AI credits",
+      "pickUser": "Select user",
+      "reason": "Reason",
+      "apply": "Credit/Debit",
+      "user": "User",
+      "freeUsed": "Free used",
+      "purchased": "Purchased",
+      "orders": "Payments",
+      "date": "Date",
+      "queries": "Queries"
+    }
   }
 }
