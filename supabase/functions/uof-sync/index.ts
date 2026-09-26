@@ -99,6 +99,16 @@ Deno.serve(async (req) => {
   const result: Record<string, any> = {};
   let parsedOpts: any = {};
   try { parsedOpts = JSON.parse(body || "{}"); } catch { /* ignore */ }
+  // Worker asks which feed connection is active (signed requests only: may return queue credentials).
+  if (parsedOpts.connection === true) {
+    if (!signed) return json({ error: "Unauthorized" }, 401);
+    const { data: act } = await sb.from("feed_connections").select("id,info").eq("active", true).maybeSingle();
+    if (!act || act.id !== "gateway") return json({ active: "uof" });
+    const { data: sec } = await sb.from("feed_connection_secrets").select("mq_password").eq("id", "gateway").maybeSingle();
+    const i = (act.info ?? {}) as Record<string, any>;
+    if (!i.mq_host || !i.mq_user || !sec?.mq_password) return json({ active: "uof", reason: "gateway_incomplete" });
+    return json({ active: "gateway", mq: { host: i.mq_host, port: Number(i.mq_port) || 5671, vhost: i.mq_vhost ?? "/", user: i.mq_user, pass: sec.mq_password, exchange: i.mq_exchange || "unifiedfeed" } });
+  }
   if (parsedOpts.status === true) {
     const r = await reconcile(sb, parsedOpts.mem);
     return json(r, r.ok ? 200 : 502);
