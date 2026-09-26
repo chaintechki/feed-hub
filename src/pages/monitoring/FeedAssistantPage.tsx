@@ -1,6 +1,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ import { Message, MessageContent, MessageResponse } from "@/components/ai-elemen
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "@/components/ai-elements/tool";
+import { AiCreditsBar, BuyCreditsDialog, PurchaseHistory } from "@/components/billing/AiCredits";
 import { MonitorSubBar } from "@/components/monitoring/MonitorSubBar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
@@ -20,6 +22,8 @@ const ENDPOINT = `${import.meta.env["VITE_SUPABASE_URL"]}/functions/v1/feed-assi
 function ChatWindow({ initial }: { initial: UIMessage[] }) {
   const { t } = useTranslation();
   const [text, setText] = useState("");
+  const [buyOpen, setBuyOpen] = useState(false);
+  const qc = useQueryClient();
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -40,8 +44,15 @@ function ChatWindow({ initial }: { initial: UIMessage[] }) {
     id: "feed-assistant",
     messages: initial,
     transport,
+    onFinish: () => qc.invalidateQueries({ queryKey: ["ai-credits"] }),
     onError: (e) => {
       const m = e.message ?? "";
+      qc.invalidateQueries({ queryKey: ["ai-credits"] });
+      if (m.includes("quota_exhausted")) {
+        toast.error(t("billing.exhausted"));
+        setBuyOpen(true);
+        return;
+      }
       toast.error(m.includes("429") || /Zu viele/.test(m) ? t("assistant.rateLimited") : m.includes("402") ? t("assistant.noCredits") : t("assistant.failed"));
     },
   });
@@ -74,6 +85,8 @@ function ChatWindow({ initial }: { initial: UIMessage[] }) {
             <div className="text-[11px] text-muted-foreground">{t("assistant.subtitle")}</div>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+        <AiCreditsBar onBuy={() => setBuyOpen(true)} />
         <button
           onClick={reset}
           disabled={busy || messages.length === 0}
@@ -82,7 +95,9 @@ function ChatWindow({ initial }: { initial: UIMessage[] }) {
           <Trash2 className="h-3.5 w-3.5" />
           {t("assistant.newConversation")}
         </button>
+        </div>
       </div>
+      <BuyCreditsDialog open={buyOpen} onOpenChange={setBuyOpen} />
 
       <Conversation className="min-h-0 flex-1">
         <ConversationContent>
@@ -130,6 +145,7 @@ function ChatWindow({ initial }: { initial: UIMessage[] }) {
         <ConversationScrollButton />
       </Conversation>
 
+      <div className="py-1"><PurchaseHistory /></div>
       <PromptInput onSubmit={(msg) => ask(msg.text ?? "")}>
         <PromptInputTextarea autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={t("assistant.placeholder")} />
         <PromptInputFooter className="justify-end">

@@ -280,6 +280,11 @@ Deno.serve(async (req) => {
     const text = last.parts?.map((p) => (p.type === "text" ? p.text : "")).join("") ?? "";
     if (!text.trim() || text.length > 2000) return json({ error: "Frage leer oder zu lang (max. 2000 Zeichen)." }, 400);
 
+    // Quota: 1 query per question (free monthly allowance first, then purchased packs).
+    const { data: quota, error: qe } = await sb.rpc("ai_consume", { _user: me });
+    if (qe) throw qe;
+    if (!(quota as { ok: boolean }).ok) return json({ error: "Kontingent aufgebraucht", code: "quota_exhausted" }, 402);
+
     // History comes from the database, not from the client.
     const { data: stored, error: he } = await sb.from("ai_chat_messages").select("message_id,role,parts").eq("user_id", me).order("created_at").limit(40);
     if (he) throw he;
@@ -327,6 +332,7 @@ Deno.serve(async (req) => {
       },
       onError: (e) => {
         console.error("assistant stream error", e);
+        sb.rpc("ai_refund", { _user: me }).then(() => {}, () => {});
         const msg = String((e as { message?: string })?.message ?? "");
         if (msg.includes("402")) return "KI-Guthaben aufgebraucht.";
         if (msg.includes("429")) return "KI-Dienst ausgelastet – bitte später erneut versuchen.";

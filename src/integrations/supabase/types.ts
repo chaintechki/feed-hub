@@ -41,6 +41,30 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_credits: {
+        Row: {
+          free_used: number
+          period: string
+          purchased: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          free_used?: number
+          period?: string
+          purchased?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          free_used?: number
+          period?: string
+          purchased?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_eval_runs: {
         Row: {
           accuracy: number
@@ -1141,6 +1165,117 @@ export type Database = {
           },
         ]
       }
+      payment_addresses: {
+        Row: {
+          active: boolean
+          address: string
+          network: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          address: string
+          network: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          address?: string
+          network?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payment_orders: {
+        Row: {
+          address: string
+          amount_exact: number
+          checked_at: string | null
+          confirmations: number | null
+          created_at: string
+          credits: number
+          expires_at: string
+          id: string
+          network: string
+          packs: number
+          paid_at: string | null
+          raw: Json | null
+          reject_reason: string | null
+          status: string
+          tx_hash: string | null
+          user_id: string
+        }
+        Insert: {
+          address: string
+          amount_exact: number
+          checked_at?: string | null
+          confirmations?: number | null
+          created_at?: string
+          credits: number
+          expires_at: string
+          id?: string
+          network: string
+          packs: number
+          paid_at?: string | null
+          raw?: Json | null
+          reject_reason?: string | null
+          status?: string
+          tx_hash?: string | null
+          user_id: string
+        }
+        Update: {
+          address?: string
+          amount_exact?: number
+          checked_at?: string | null
+          confirmations?: number | null
+          created_at?: string
+          credits?: number
+          expires_at?: string
+          id?: string
+          network?: string
+          packs?: number
+          paid_at?: string | null
+          raw?: Json | null
+          reject_reason?: string | null
+          status?: string
+          tx_hash?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      payment_settings: {
+        Row: {
+          confirmations: Json
+          free_monthly: number
+          id: number
+          order_ttl_min: number
+          pack_price_usdt: number
+          pack_size: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          confirmations?: Json
+          free_monthly?: number
+          id?: number
+          order_ttl_min?: number
+          pack_price_usdt?: number
+          pack_size?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          confirmations?: Json
+          free_monthly?: number
+          id?: number
+          order_ttl_min?: number
+          pack_price_usdt?: number
+          pack_size?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1616,6 +1751,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ai_admin_adjust: {
+        Args: { _actor: string; _delta: number; _reason: string; _user: string }
+        Returns: number
+      }
+      ai_consume: { Args: { _user: string }; Returns: Json }
+      ai_credit_order: {
+        Args: { _order: string; _raw: Json; _tx: string }
+        Returns: boolean
+      }
+      ai_refund: { Args: { _user: string }; Returns: undefined }
       api_track: {
         Args: { _client: string; _endpoint: string; _limit: number }
         Returns: number
