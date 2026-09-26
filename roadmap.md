@@ -15,4 +15,6 @@
 - [x] Platzhalter-Zugangsdaten GW_* gesetzt
 - [x] Gateway-Ersteinrichtung: Admin chaintech angelegt, Zugang gesichert
 - [ ] Feed-Client-ID vom Anbieter (Admin-API kann Feed-Clients nicht auflisten) – wartet auf oddz.club
-- [ ] Umschaltbare Anbindung (Tabelle, Funktion, Oberfläche, Worker)
+- [x] Umschaltbare Anbindung (Tabelle, Funktion, Oberfläche, Worker) mit Platzhaltern
+- [ ] Echte GW-Zugangsdaten eintragen + Testnachricht – wartet auf oddz.club
+- [ ] Server: `sudo ./deploy.sh` (1.0.15) – wartet auf Betreiber
