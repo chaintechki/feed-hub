@@ -37,6 +37,18 @@ describe("monitor filters", () => {
     expect(matchesMonitorFilters(match({ scheduled: "2026-09-27T00:00:01Z" }), { hours24: true }, "", NOW)).toBe(false);
   });
 
+  it("live filter keeps only running or interrupted live matches", () => {
+    expect(matchesMonitorFilters(match({ status: "live" }), { live: true }, "", NOW)).toBe(true);
+    expect(matchesMonitorFilters(match({ status: "suspended" }), { live: true }, "", NOW)).toBe(true);
+    expect(matchesMonitorFilters(match({ status: "interrupted" }), { live: true }, "", NOW)).toBe(true);
+    expect(matchesMonitorFilters(match({ status: "not_started" }), { live: true }, "", NOW)).toBe(false);
+    expect(matchesMonitorFilters(match({ status: "ended" }), { live: true }, "", NOW)).toBe(false);
+    // combines with other flags and search
+    const m = match({ status: "live", hotlisted: true });
+    expect(matchesMonitorFilters(m, { live: true, hotlisted: true }, "alpha", NOW)).toBe(true);
+    expect(matchesMonitorFilters(m, { live: true, alerted: true }, "", NOW)).toBe(false);
+  });
+
   it("combines status filters and search", () => {
     const m = match({ alerted: true, hotlisted: true, commentCount: 2, controlMode: "manual", providerOnly: true, earlyOdds: true });
     expect(matchesMonitorFilters(m, { alerted: true, hotlisted: true, commented: true, manual: true, controllable: true, providerOnly: true, withEarlyOdds: true }, "alpha", NOW)).toBe(true);

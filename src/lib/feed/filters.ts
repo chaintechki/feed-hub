@@ -39,6 +39,7 @@ export function matchesMonitorFilters(
   term = "",
   now = Date.now(),
 ) {
+  if (filters.live && !["live", "suspended", "interrupted"].includes(match.status)) return false;
   if (filters.alerted && !match.alerted) return false;
   if (filters.hotlisted && !match.hotlisted) return false;
   if (filters.commented && match.commentCount === 0) return false;

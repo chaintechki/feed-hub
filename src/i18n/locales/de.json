@@ -21,6 +21,7 @@
     "search": "Sportart, Land, Liga suchen"
   },
   "filters": {
+    "live": "Live",
     "alerted": "Alarmiert",
     "semiAuto": "Halbautomatisch",
     "manual": "Manuell",
