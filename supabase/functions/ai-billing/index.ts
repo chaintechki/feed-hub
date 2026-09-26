@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
 
       case "status": {
         const o = await own(b.order_id);
-        if (!o) return json({ error: "Bestellung nieht gefunden" }, 404);
+        if (!o) return json({ error: "Bestellung nicht gefunden" }, 404);
         const recent = o.status === "confirming" ? await check(sb, o) : o;
         return json({ order: recent });
       }
