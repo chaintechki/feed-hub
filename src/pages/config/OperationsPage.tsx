@@ -18,6 +18,8 @@ type EvalRun = { id?: number; at?: string; total: number; correct: number; accur
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--danger))", "hsl(var(--muted-foreground))", "hsl(var(--accent-foreground))"];
 const MB = 1024 * 1024;
+const DB_WARN = 1.5 * 1024 * MB; // warn well before the data disk fills up
+type FeedHealth = { last_odds_at: string | null; odds_5m: number; db_bytes: number; query_ms: number; producers: { name: string; last_alive_at: string | null; down: boolean }[] | null };
 
 function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string | undefined; tone?: "danger" | "success" | undefined }) {
   return (
@@ -68,6 +70,18 @@ export default function OperationsPage() {
       };
     },
   });
+  const h = useQuery({
+    queryKey: ["feed-health", user?.id],
+    enabled: !!user && allowed,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("feed_health");
+      if (error) throw error;
+      return data as unknown as FeedHealth;
+    },
+  });
+  const oddsAge = h.data?.last_odds_at ? Math.max(0, Math.round((Date.now() - new Date(h.data.last_odds_at).getTime()) / 1000)) : null;
   const evalRun = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("feed-assistant", { body: { eval: true } });
@@ -125,6 +139,24 @@ export default function OperationsPage() {
         </div>
       </div>
       {q.isError && <p className="text-[12px] text-danger">{t("ops.loadError")}</p>}
+
+      <Section title={t("ops.feedHealth")}>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4" data-testid="feed-health">
+          <Tile
+            label={t("ops.lastOdds")}
+            value={oddsAge == null ? "—" : `${oddsAge} s`}
+            tone={oddsAge == null ? undefined : oddsAge > 120 ? "danger" : "success"}
+            sub={oddsAge != null && oddsAge > 120 ? t("ops.feedStale") : t("ops.odds5m", { n: (h.data?.odds_5m ?? 0).toLocaleString() })}
+          />
+          <Tile label={t("ops.dbLatency")} value={h.data ? `${h.data.query_ms} ms` : "—"} tone={h.data ? (h.data.query_ms > 2000 ? "danger" : "success") : undefined} />
+          <Tile label={t("ops.dbSize")} value={fmtBytes(h.data?.db_bytes)} tone={h.data && h.data.db_bytes > DB_WARN ? "danger" : undefined} sub={h.data && h.data.db_bytes > DB_WARN ? t("ops.dbWarn") : undefined} />
+          <Tile
+            label={t("ops.producers")}
+            value={(h.data?.producers ?? []).map((p) => `${p.name} ${p.down ? "✕" : "✓"}`).join(" · ") || "—"}
+            tone={h.data?.producers?.some((p) => p.down) ? "danger" : h.data ? "success" : undefined}
+          />
+        </div>
+      </Section>
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
         <Tile label={t("ops.dbSize")} value={fmtBytes(last?.db_bytes)} sub={last ? new Date(last.at).toLocaleString() : t("ops.noData")} />

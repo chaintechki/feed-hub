@@ -487,7 +487,14 @@
     "resolverAccuracy": "Dictionary hits",
     "resolverHint": "German term detection without AI",
     "evalQuestion": "Test question",
-    "evalFilters": "Chosen filters"
+    "evalFilters": "Chosen filters",
+    "feedHealth": "Feed health (live)",
+    "lastOdds": "Last odds",
+    "odds5m": "{{n}} odds updates / 5 min",
+    "feedStale": "No odds for over 2 min!",
+    "dbLatency": "DB response time",
+    "dbWarn": "Storage getting full – check cleanup",
+    "producers": "Provider channels"
   },
   "activeFilters": {
     "label": "Active filters",
