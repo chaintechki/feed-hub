@@ -219,8 +219,14 @@ log "Installing dependencies"
 npm_install_robust() { # $1 = directory, rest = extra npm args
   local dir="$1"; shift
   local try
+  # The lock file is not versioned: a leftover local copy goes stale whenever
+  # package.json gains a dependency and makes `npm ci` fail. Use npm install.
+  if [ -f "$dir/package-lock.json" ] && ! (cd "$dir" && git ls-files --error-unmatch package-lock.json >/dev/null 2>&1); then
+    echo "    removing stale local package-lock.json"
+    rm -f "$dir/package-lock.json"
+  fi
   for try in 1 2 3; do
-    if (cd "$dir" && { if [ -f package-lock.json ] && [ "$try" = 1 ]; then npm ci --no-audit --no-fund "$@"; else npm install --no-audit --no-fund "$@"; fi; }); then
+    if (cd "$dir" && npm install --no-audit --no-fund "$@"); then
       ok "dependencies installed in $dir"; return 0
     fi
     echo "    npm failed (attempt $try) – cleaning node_modules and npm cache, retrying"
