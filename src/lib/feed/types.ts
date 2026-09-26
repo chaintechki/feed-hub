@@ -65,6 +65,7 @@ export type TreeSport = {
 };
 
 export const MONITOR_FILTER_KEYS = [
+  "live",
   "alerted",
   "semiAuto",
   "manual",

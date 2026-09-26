@@ -21,6 +21,7 @@
     "search": "Search sport, category, tournament"
   },
   "filters": {
+    "live": "Live",
     "alerted": "Alerted",
     "semiAuto": "Semi auto",
     "manual": "Manual",
