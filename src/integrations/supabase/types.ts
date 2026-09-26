@@ -1839,6 +1839,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      ingest_batch: {
+        Args: { _matches: Json; _producers: Json }
+        Returns: number
+      }
       market_group_of: { Args: { _name: string }; Returns: string }
       ops_snapshot: { Args: never; Returns: undefined }
       ops_snapshot_ext: {
