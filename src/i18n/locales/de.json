@@ -487,7 +487,14 @@
     "resolverAccuracy": "Wörterbuch-Treffer",
     "resolverHint": "Erkennung deutscher Begriffe ohne KI",
     "evalQuestion": "Testfrage",
-    "evalFilters": "Gewählte Filter"
+    "evalFilters": "Gewählte Filter",
+    "feedHealth": "Feed-Zustand (live)",
+    "lastOdds": "Letzte Quote vor",
+    "odds5m": "{{n}} Quoten-Updates / 5 Min",
+    "feedStale": "Seit über 2 Min keine Quote!",
+    "dbLatency": "DB-Antwortzeit",
+    "dbWarn": "Speicher knapp – Aufräumen prüfen",
+    "producers": "Anbieter-Kanäle"
   },
   "activeFilters": {
     "label": "Aktive Filter",

@@ -39,6 +39,20 @@ async function signedPost(fn, obj) {
 }
 
 // ---------- batching ----------
+// Keeps the buffer bounded. Only superseded odds_change messages are dropped (oldest first,
+// newer ones carry the current state); settlements, cancels, bet stops and fixture changes are never dropped.
+export function trimBuffer(list, max) {
+  if (list.length <= max) return list;
+  let excess = list.length - max;
+  const out = [];
+  for (const m of list) {
+    if (excess > 0 && /<odds_change\b/.test(m.xml.slice(0, 400))) { excess--; continue; }
+    out.push(m);
+  }
+  if (excess > 0) log(`buffer over limit by ${excess} critical messages, kept`);
+  else log(`buffer trimmed to ${out.length} (old odds updates dropped)`);
+  return out;
+}
 let buf = [];
 let flushing = false;
 let maxBytes = 1_500_000; // backend accepts up to 5 MB per request
@@ -70,8 +84,9 @@ async function flush() {
         await signedPost("uof-ingest", { messages: batch });
         if (maxBytes < 1_500_000) maxBytes = Math.min(1_500_000, maxBytes * 2);
         const took = Date.now() - t0;
-        delay = took > 3000 ? Math.min(60_000, delay * 2) : Math.max(BASE_DELAY, Math.floor(delay / 2));
-        if (took > 3000) { log(`ingest slow (${took} ms), next flush in ${delay / 1000}s`); break; }
+        // Circuit breaker: slow database (> 2 s) -> back off and let messages coalesce.
+        delay = took > 2000 ? Math.min(60_000, delay * 2) : Math.max(BASE_DELAY, Math.floor(delay / 2));
+        if (took > 2000) { log(`ingest slow (${took} ms), next flush in ${delay / 1000}s`); break; }
       } catch (e) {
         buf.unshift(...batch);
         if (/ 413 /.test(e.message) && maxBytes > 50_000) { maxBytes = Math.floor(maxBytes / 2); continue; }
@@ -80,7 +95,7 @@ async function flush() {
         break;
       }
     }
-    if (buf.length > 20000) buf = buf.slice(-20000);
+    buf = trimBuffer(buf, 20000);
   } finally {
     flushing = false;
   }

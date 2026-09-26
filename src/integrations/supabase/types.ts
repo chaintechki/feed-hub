@@ -1832,6 +1832,7 @@ export type Database = {
       }
       db_cleanup: { Args: never; Returns: Json }
       db_cleanup_core: { Args: never; Returns: Json }
+      feed_health: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1843,6 +1844,7 @@ export type Database = {
         Args: { _matches: Json; _producers: Json }
         Returns: number
       }
+      ingest_settlements: { Args: { _rows: Json }; Returns: number }
       market_group_of: { Args: { _name: string }; Returns: string }
       ops_snapshot: { Args: never; Returns: undefined }
       ops_snapshot_ext: {
@@ -1858,6 +1860,10 @@ export type Database = {
       owns_api_client: {
         Args: { _client: string; _user: string }
         Returns: boolean
+      }
+      set_odds_suspended: {
+        Args: { _groups: Json; _stops: string[] }
+        Returns: number
       }
       top_role: { Args: { _user: string }; Returns: string }
       upsert_match_odds: { Args: { _rows: Json }; Returns: number }

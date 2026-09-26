@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
     const { error } = await sb.rpc("upsert_match_odds", { _rows: full.slice(i, i + 500) });
     if (error) errors.push({ kind: "odds", error: error.message });
   }
-  // Batch suspension toggles: one update per (market, state) instead of one per row.
+  // Suspension toggles + bet stops: one database call per batch; falls back to the old path on error.
   const groups = new Map<string, { market: string; suspended: boolean; ids: Set<string> }>();
   for (const r of partial) {
     const k = `${r.market}|${r.suspended}`;
@@ -160,11 +160,16 @@ Deno.serve(async (req) => {
     g.ids.add(r.match_id);
     groups.set(k, g);
   }
-  for (const g of groups.values()) {
-    const ids = [...g.ids];
-    for (let i = 0; i < ids.length; i += 150) {
-      const { error } = await sb.from("match_odds").update({ suspended: g.suspended }).eq("market", g.market).neq("suspended", g.suspended).in("match_id", ids.slice(i, i + 150));
-      if (error) errors.push({ kind: "suspend", error: error.message });
+  if (groups.size || stops.size) {
+    const payload = [...groups.values()].map((g) => ({ market: g.market, suspended: g.suspended, ids: [...g.ids] }));
+    const { error } = await sb.rpc("set_odds_suspended", { _groups: payload, _stops: [...stops] });
+    if (error) {
+      errors.push({ kind: "suspend_rpc", error: error.message });
+      for (const g of payload) for (let i = 0; i < g.ids.length; i += 150) {
+        const { error: e2 } = await sb.from("match_odds").update({ suspended: g.suspended }).eq("market", g.market).neq("suspended", g.suspended).in("match_id", g.ids.slice(i, i + 150));
+        if (e2) errors.push({ kind: "suspend", error: e2.message });
+      }
+      if (stops.size) await sb.from("match_odds").update({ suspended: true }).eq("suspended", false).in("match_id", [...stops]);
     }
   }
   // Match status + producer heartbeats go out in one batched call instead of many single updates.
@@ -175,8 +180,10 @@ Deno.serve(async (req) => {
     });
     if (error) errors.push({ kind: "batch", error: error.message });
   }
-  if (stops.size) await sb.from("match_odds").update({ suspended: true }).eq("suspended", false).in("match_id", [...stops]);
-  if (settle.length) await sb.from("settlements").upsert(settle, { onConflict: "match_id,market,specifier,outcome,state", ignoreDuplicates: true });
+  if (settle.length) {
+    const { error } = await sb.rpc("ingest_settlements", { _rows: settle });
+    if (error) errors.push({ kind: "settle", error: error.message });
+  }
   const outrights = await writeOutrights(sb, outrightMsgs, outrightStops, errors).catch((e) => { errors.push({ kind: "outrights", error: String(e) }); return 0; });
   if (errors.length) await sb.from("uof_messages_log").insert(errors.slice(0, 50).map((e) => ({ kind: e.kind, event_id: e.event_id ?? null, error: e.error.slice(0, 500) })));
 
