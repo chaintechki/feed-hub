@@ -271,7 +271,8 @@
       "feedOptions": "Feed options",
       "outrights": "Outrights",
       "operations": "Operations",
-      "payments": "Payments"
+      "payments": "Payments",
+      "feedConnections": "Feed connections"
     },
     "activation": "Activation",
     "activationHelp": "Off = disabled, Mon = monitoring only, Ctrl = full control",
@@ -600,6 +601,52 @@
       "orders": "Payments",
       "date": "Date",
       "queries": "Queries"
+    }
+  },
+  "fc": {
+    "title": "Feed connections",
+    "desc": "Exactly one connection is active. Only the super admin can switch.",
+    "name": {
+      "uof": "Unified Feed (account 4002)",
+      "gateway": "OddsFeed Gateway"
+    },
+    "active": "Active",
+    "inactive": "Inactive",
+    "verified": "Probe passed",
+    "yes": "Yes",
+    "no": "No",
+    "reachable": "Reachable",
+    "lastCheck": "Last check",
+    "placeholderHint": "Credentials are still placeholders. They will be entered once the provider supplies feed client ID, username and password.",
+    "testMessage": "Send test message",
+    "rotate": "Renew queue password",
+    "queue": "Queue",
+    "f": {
+      "mq_host": "Host",
+      "mq_port": "Port",
+      "mq_vhost": "Virtual host",
+      "mq_user": "User",
+      "mq_exchange": "Exchange"
+    },
+    "activate": "Activate",
+    "lockedHint": "Activation is locked until a test message succeeded.",
+    "confirmTitle": "Switch connection?",
+    "confirmText": "{{name}} will be activated and the other connection deactivated. The feed service switches within a minute; odds pause for a few seconds, then missing data is recovered.",
+    "done": "Done",
+    "status": {
+      "ok": "Running",
+      "not_configured": "Not configured",
+      "credentials_placeholder": "Placeholder credentials",
+      "unreachable": "Unreachable",
+      "login_failed": "Login failed",
+      "reachable": "Reachable",
+      "test_ok": "Test message succeeded"
+    },
+    "err": {
+      "credentials_placeholder": "Credentials are still placeholders.",
+      "not_verified": "Send a successful test message first.",
+      "forbidden": "Super admin only.",
+      "rate_limited": "Too many requests."
     }
   }
 }

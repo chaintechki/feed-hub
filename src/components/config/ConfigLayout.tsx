@@ -14,6 +14,7 @@ const TABS = [
   { to: "/configuration/outrights", key: "outrights" },
   { to: "/configuration/operations", key: "operations", admin: true },
   { to: "/configuration/payments", key: "payments", superOnly: true },
+  { to: "/configuration/feed-connections", key: "feedConnections", superOnly: true },
 ] as const;
 
 export function ConfigLayout() {

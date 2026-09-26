@@ -32,6 +32,7 @@ const FeedOptionsPage = lazy(() => import("@/pages/config/FeedOptionsPage"));
 const OutrightsConfigPage = lazy(() => import("@/pages/config/OutrightsConfigPage"));
 const OperationsPage = lazy(() => import("@/pages/config/OperationsPage"));
 const PaymentsPage = lazy(() => import("@/pages/config/PaymentsPage"));
+const FeedConnectionsPage = lazy(() => import("@/pages/config/FeedConnectionsPage"));
 const UserSettingsPage = lazy(() => import("@/pages/UserSettingsPage"));
 const ApiDocsPage = lazy(() => import("@/pages/ApiDocsPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
@@ -89,6 +90,7 @@ export default function App() {
                     <Route path="outrights" element={<OutrightsConfigPage />} />
                     <Route path="operations" element={<OperationsPage />} />
                     <Route path="payments" element={<PaymentsPage />} />
+                    <Route path="feed-connections" element={<FeedConnectionsPage />} />
                   </Route>
                   <Route path="/api-docs" element={<ApiDocsPage />} />
                   <Route path="/settings" element={<UserSettingsPage />} />
